@@ -252,7 +252,9 @@ strong{ font-weight:600; }
   border:1px solid var(--border);
   color:var(--text); cursor:pointer;
 }
-.avatar-fallback{ font-size:.8rem; }
+.avatar-fallback{ font-size:.8rem;
+width: 100%; 
+height: auto;}
 
 .menu{
   position:absolute; right:0; top:48px; min-width:180px;
