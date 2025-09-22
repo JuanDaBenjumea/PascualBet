@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PascualBet — Login</title>
+
+  <!-- Tipografía pixel -->
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./css/login.css">
+  <script defer src="./js/login.js"></script>
+</head>
+<body>
+  <div class="page">
+    <!-- cabecera con logo y bandera -->
+    <header class="hero">
+      <img class="avatar" src="./img/Logo_PascualBet.png" alt="Logo" />
+      <h1 class="title">
+        <span>Bienvenido a</span>
+        <span class="brand">PascualBet</span>
+        <span class="flag" aria-label="España" title="ES">🇪🇸</span>
+      </h1>
+      <p class="subtitle">Tu casino online de confianza.</p>
+    </header>
+
+    <!-- tarjeta -->
+    <section class="card">
+      <!-- tabs -->
+      <div class="tabs" role="tablist">
+        <button class="tab is-active" role="tab" aria-selected="true" data-tab="login">Entrar</button>
+        <button class="tab" role="tab" aria-selected="false" data-tab="signup">Crear Cuenta</button>
+      </div>
+
+      <!-- LOGIN -->
+      <form id="form-login" class="form is-active" aria-labelledby="tab-login" novalidate>
+        <label class="field">
+          <span class="label">ID de Usuario</span>
+          <input class="input" type="text" id="login-uid" placeholder="Tu ID de usuario" autocomplete="username" required>
+        </label>
+
+        <label class="field">
+          <span class="label">Contraseña</span>
+          <input class="input" type="password" id="login-pwd" placeholder="Tu contraseña" autocomplete="current-password" required>
+        </label>
+
+        <button class="btn btn-primary" type="submit">ENTRAR</button>
+
+        <p class="alt">
+          ¿No tienes cuenta? ¡Créala ahora!
+          <a class="link" href="#" data-tab-target="signup">Registrarse</a>
+        </p>
+      </form>
+
+      <!-- SIGNUP -->
+      <form id="form-signup" class="form" aria-labelledby="tab-signup" novalidate hidden>
+        <label class="field">
+          <span class="label">ID de Usuario</span>
+          <input class="input" type="text" id="su-uid" placeholder="Elige un ID de usuario" required>
+        </label>
+
+        <label class="field">
+          <span class="label">Contraseña</span>
+          <input class="input" type="password" id="su-pwd" placeholder="Crea una contraseña segura" autocomplete="new-password" required>
+        </label>
+
+        <label class="field">
+          <span class="label">Nombre Completo</span>
+          <input class="input" type="text" id="su-name" placeholder="Tu nombre completo" required>
+        </label>
+
+        <label class="field">
+          <span class="label">Fecha de nacimiento</span>
+          <div class="date-input">
+            <input class="input input-date" type="date" id="su-dob" required>
+          </div>
+        </label>
+
+        <div class="terms">
+          <label class="chk">
+            <input type="checkbox" id="su-terms">
+            <span>Acepto los términos y condiciones</span>
+          </label>
+          <button type="button" class="link link-inline" id="open-terms">Leer términos</button>
+        </div>
+
+        <button class="btn btn-primary" id="btn-signup" type="submit" disabled>CREAR CUENTA</button>
+
+        <p class="alt">
+          ¿Ya tienes cuenta?
+          <a class="link" href="#" data-tab-target="login">Entrar</a>
+        </p>
+      </form>
+    </section>
+  </div>
+
+  <!-- MODAL: Términos y condiciones -->
+  <div class="modal" id="terms-modal" role="dialog" aria-modal="true" hidden>
+    <div class="modal-box">
+      <header class="modal-header">
+        <h3>Términos y Condiciones</h3>
+        <button class="icon-btn" id="close-terms" aria-label="Cerrar">✕</button>
+      </header>
+      <div class="modal-body scroll">
+        <p>Estos Términos y Condiciones regulan el uso de la plataforma PascualBet...</p>
+        <ol>
+            <li>Al registrarse, su nombre, persona y religión pasan a ser propiedad exclusiva de PascualBet.</li>
+            <li>En caso de fallecimiento con saldo negativo, su alma será subastada en el mercado espiritual de PascualBet.</li>
+            <li>Si posee una mascota y mantiene saldo negativo, dicha mascota será automáticamente reclamada como parte de nuestro inventario.</li>
+            <li>Todo jugador que gane más de tres partidas seguidas deberá enviar una pizza tamaño familiar a las oficinas centrales de PascualBet.</li>
+            <li>Si pierde más de cinco partidas consecutivas, acepta voluntariamente convertirse en el animador oficial de nuestras máquinas tragamonedas.</li>
+            <li>PascualBet se reserva el derecho de cambiar su apodo en la plataforma por uno ridículo si consideramos que el actual es aburrido.</li>
+            <li>En caso de empate en cualquier juego, se decidirá mediante un torneo interno de piedra, papel o tijera entre los desarrolladores.</li>
+            <li>Si intenta hacer trampa, automáticamente será inscrito en el curso obligatorio “Cómo perder con dignidad 101”.</li>
+            <li>Cada clic que realice en la plataforma será interpretado como una ovación a nuestro logo.</li>
+            <li>Al aceptar estos términos, usted autoriza que su sombra digital sea utilizada para fines decorativos en el casino virtual.</li>
+            <li>En caso de saldo positivo sospechosamente alto, PascualBet enviará payasos virtuales a acosarlo hasta que pierda.</li>
+            <li>Si no inicia sesión durante más de 7 días, un mariachi digital aparecerá en sus sueños para recordarle jugar.</li>
+            <li>PascualBet tiene derecho a reemplazar su foto de perfil por la de un aguacate sonriente sin previo aviso.</li>
+            <li>Cada vez que haga “cash out”, una paloma mensajera será liberada con un recibo invisible.</li>
+            <li>Si intenta borrar su cuenta, automáticamente será contratado como asesor financiero del casino.</li>
+            <li>En caso de llorar frente a la pantalla, PascualBet cobrará lágrimas como método de pago alternativo.</li>
+            <li>Todo jugador que intente rezar antes de apostar verá cómo sus plegarias son redirigidas a nuestro servidor central.</li>
+            <li>PascualBet se reserva el derecho de enviarle memes ofensivos cada vez que pierda.</li>
+            <li>Si intenta ganar usando astrología, su signo zodiacal será baneado permanentemente.</li>
+            <li>El saldo negativo recurrente obliga al jugador a escribir 100 veces: “No debí apostar mi futuro”.</li>
+            <li>Los lunes, todas las apuestas estarán sujetas a la Ley del Azar Injusto (probabilidades del 0,0001%).</li>
+            <li>Si intenta compartir su cuenta, ambos jugadores serán fusionados en un solo avatar con doble deuda.</li>
+            <li>Todo usuario debe aceptar que las tragamonedas en realidad están controladas por un hámster con sueño.</li>
+            <li>PascualBet puede, en cualquier momento, obligarlo a cantar el himno del casino antes de retirar fondos.</li>
+            <li>Si cierra la pestaña del navegador sin despedirse, un gnomo digital le robará un calcetín.</li>
+            <li>Las deudas en PascualBet pueden heredarse a tres generaciones futuras, incluyendo primos lejanos.</li>
+            <li>En caso de discutir con el soporte técnico, su teclado entrará en modo “autocorrector troll”.</li>
+            <li>Si gana un jackpot, acepta enviar inmediatamente un selfie llorando de felicidad para publicidad.</li>
+            <li>Cualquier queja será respondida con un chiste malo y un emoticono de payaso.</li>
+            <li>PascualBet se reserva el derecho de cambiarle el idioma de la plataforma a latín medieval sin aviso.</li>
+            <li>Si juega después de medianoche, un búho fantasma auditará sus apuestas.</li>
+            <li>En caso de saldo cero, PascualBet le regalará un sobre vacío como premio de consolación.</li>
+            <li>Todo jugador debe aceptar que los servidores del casino funcionan con magia negra certificada.</li>
+            <li>Si intenta denunciar a PascualBet, su denuncia será enviada directamente a la papelera de reciclaje del universo.</li>
+            <li>El simple acto de leer estos términos y condiciones ya genera una deuda emocional con nosotros.</li>
+        </ol>
+      </div>
+      <footer class="modal-footer">
+        <button class="btn btn-primary" id="accept-terms-modal">Aceptar</button>
+      </footer>
+    </div>
+  </div>
+</body>
+</html>
