@@ -13,7 +13,13 @@ body{
   background: radial-gradient(1200px 800px at 20% -10%, #0f1824 0%, var(--bg) 55%) fixed;
   color:var(--text);
 }
-.page{ min-height:100%; display:grid; align-content:center; justify-items:center; padding:40px 16px; text-align:center; }
+.page{ min-height:100%; display:grid; align-content:center; justify-items:center; padding:40px 16px; text-align:center;
+  background-image: url('https://thumbs.dreamstime.com/b/create-vibrant-pixel-art-piece-depicting-top-down-view-casino-poker-table-show-player-strategically-placing-cards-stack-326490832.jpg'); 
+  background-size: cover; /* Asegura que la imagen cubra todo el fondo */
+  background-position: center; /* Centra la imagen */
+  background-repeat: no-repeat; /* Evita que la imagen se repita */
+  min-height: 100vh; /* Asegura que el fondo cubra toda la altura de la pantalla */
+}
 
 /* ===== Hero ===== */
 .hero{ margin-bottom:28px; text-align:center; }

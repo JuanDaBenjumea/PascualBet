@@ -5,20 +5,38 @@ export default {
     // login.js (adaptado con redirección a index.html al loguear)
 document.addEventListener('DOMContentLoaded', () => {
   // ---------- Tabs ----------
+
   const tabButtons = document.querySelectorAll('.tab');
-  const loginForm  = document.getElementById('form-login');
+  const loginForm = document.getElementById('form-login');
   const signupForm = document.getElementById('form-signup');
 
   function switchTo(tab) {
-    tabButtons.forEach(b => b.classList.toggle('is-active', b.dataset.tab === tab));
-    const showLogin  = tab === 'login';
-    if (loginForm)  { loginForm.hidden  = !showLogin;  loginForm.classList.toggle('is-active', showLogin); }
-    if (signupForm) { signupForm.hidden =  showLogin;  signupForm.classList.toggle('is-active', !showLogin); }
+    tabButtons.forEach((b) => b.classList.toggle('is-active', b.dataset.tab === tab));
+    const showLogin = tab === 'login';
+    if (loginForm) {
+      loginForm.hidden = !showLogin;
+      loginForm.classList.toggle('is-active', showLogin);
+    }
+    if (signupForm) {
+      signupForm.hidden = showLogin;
+      signupForm.classList.toggle('is-active', !showLogin);
+    }
   }
-  tabButtons.forEach(b => b.addEventListener('click', () => switchTo(b.dataset.tab)));
-  document.querySelectorAll('[data-tab-target]').forEach(a => {
-    a.addEventListener('click', e => { e.preventDefault(); switchTo(a.dataset.tabTarget); });
+
+  // Registrar eventos para las pestañas
+  tabButtons.forEach((b) => {
+    b.addEventListener('click', () => switchTo(b.dataset.tab));
   });
+
+  document.querySelectorAll('[data-tab-target]').forEach((a) => {
+    a.addEventListener('click', (e) => {
+      e.preventDefault();
+      switchTo(a.dataset.tabTarget);
+    });
+  });
+
+  // Configurar el estado inicial
+  switchTo('login');
 
   // ---------- DOB (fecha) ----------
   const dob = document.getElementById('su-dob');
@@ -126,7 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }));
 
         // Redirigir a la home
-        this.$router.push("/a");  // cambia la ruta si tu index está en otra carpeta
+        this.$router.push("/menu");  // cambia la ruta si tu index está en otra carpeta
       } catch (err) {
         toast(err.message);
       } finally {
@@ -169,8 +187,15 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
+  },
+  methods: {
+    logout() {
+      // Elimina la sesión y redirige al login
+      localStorage.removeItem('pb:session');
+      this.$router.replace('/'); // Redirige al login
+    }
   }
-  };
+};
 </script>
 
 <template>
@@ -182,7 +207,6 @@ document.addEventListener('DOMContentLoaded', () => {
       <h1 class="title">
         <span>Bienvenido a</span>
         <span class="brand">PascualBet</span>
-        <span class="flag" aria-label="España" title="ES">🇪🇸</span>
       </h1>
       <p class="subtitle">Tu casino online de confianza.</p>
     </header>
