@@ -30,7 +30,16 @@ export default {
     },
     closeWithdrawModal() {
       this.showWithdrawModal = false; // Oculta el modal de retiro
-    }
+    },
+    tragaperras() {
+        this.$router.push('/slot');
+      },
+      ruleta() {
+        this.$router.push('/rulete');
+      },
+      poker() {
+        this.$router.push('/poker');
+      }
   }
 };
 </script>
@@ -115,18 +124,18 @@ export default {
             <p class="card-text">
               Gira y gana. Configura tu apuesta y cruza los dedos.
             </p>
-            <button class="btn play" data-action="play" data-game="ruleta">
+            <button class="btn play" @click="ruleta">
               Jugar
             </button>
           </article>
 
           <article class="card game" data-game="blackjack">
-            <h3 class="card-title">Blackjack</h3>
-            <img src="https://play-lh.googleusercontent.com/_Sli9tF6VgqBywguT1K8RLV0du3ZWh7OCsUXRCi1-Mxy8W8eCprepT_MCoDh_Ue5dNs=w600-h300-pc0xffffff-pd" alt="" srcset="">
+            <h3 class="card-title">tragamonedas</h3>
+            <img src="https://i.redd.it/8iwvfxxg2efe1.png" alt="" srcset="">
             <p class="card-text">
-              Llega a 21 sin pasarte. ¿Pides o te plantas?
+              nose usted ya sabra, tu apuesta tu perder
             </p>
-            <button class="btn play" data-action="play" data-game="blackjack">
+            <button class="btn play" @click="tragaperras">
               Jugar
             </button>
           </article>
@@ -135,7 +144,7 @@ export default {
             <h3 class="card-title">Póker</h3>
             <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTYWJWVbDcT413-oX0ekFgFcRqdCH_8tTVzKg&s" alt="" srcset="">
             <p class="card-text">Arma la mejor mano y vence a la mesa.</p>
-            <button class="btn play" data-action="play" data-game="poker">
+            <button class="btn play" @click="tragaperras">
               Jugar
             </button>
           </article>
@@ -183,7 +192,7 @@ export default {
             >
               Girar
             </button>
-            
+
           </article>
 
           <article class="card slot" data-game="slot-egypt">
@@ -240,7 +249,7 @@ export default {
           />
         </label>
         <button class="btn" id="confirm-deposit" data-action="confirm-deposit">
-          Confirmar
+          <a href="https://www.youtube.com/watch?v=xvFZjo5PgG0&list=RDxvFZjo5PgG0&start_radio=1" target="_blank">confirmar</a>
         </button>
       </div>
     </div>

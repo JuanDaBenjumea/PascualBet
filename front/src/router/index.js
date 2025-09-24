@@ -3,6 +3,7 @@ import index from '../components/index.vue';
 import login from '../components/login.vue';
 import SlotM from '../components/games/slotM.vue';
 import Rulet from '../components/games/rulet.vue';
+import Poker from '../components/games/poker.vue';
 
 const routes = [
   {
@@ -30,7 +31,8 @@ const routes = [
     }
   },
   { path: '/slot', component: SlotM },
-  { path: '/rulete', component: Rulet }
+  { path: '/rulete', component: Rulet },
+  { path: '/poker', component: Poker }
 ];
 
 const router = createRouter({

@@ -112,9 +112,6 @@
               >
                 {{ spinning ? 'GIRANDO...' : 'GIRAR RULETA' }}
               </button>
-              <button class="btn play" @click="goBack">
-              volver a menu
-            </button>
             </div>
             
             <!-- Results Display -->
@@ -663,9 +660,6 @@ export default {
       ctx.strokeStyle = '#fbbf24';
       ctx.lineWidth = 5;
       ctx.stroke();
-    },
-    goBack() {
-      this.$router.push('/menu');
     }
   },
   beforeUnmount() {
