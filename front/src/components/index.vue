@@ -53,7 +53,7 @@ export default {
 
       <nav class="user-actions">
         <div class="balance">
-          Saldo: <strong id="balance" data-balance="0">$0</strong>
+          Saldo: <strong id="balance" data-balance="0">DEMO</strong>
         </div>
         <button class="btn" id="btn-deposit" data-action="open-deposit" aria-haspopup="menu"
             aria-expanded="false"
@@ -82,35 +82,21 @@ export default {
 
   <main class="container">
     <!-- Tabs -->
-    <section class="tabs" role="tablist" aria-label="Secciones">
-      <button
-        class="tab is-active"
-        role="tab"
-        aria-selected="true"
-        data-tab="casino"
-      ></button>
-      <button
-        class="tab"
-        role="tab"
-        aria-selected="false"
-        data-tab="apuestas"
-      >
-    </button>
-      <button
-        class="tab"
-        role="tab"
-        aria-selected="false"
-        data-tab="slots"
-      ></button>
-      <button
-        class="tab"
-        role="tab"
-        aria-selected="false"
-        data-tab="admin"
-        id="tab-admin"
-        hidden
-      ></button>
-    </section>
+    <div class="tab-panel" id="panel-admin" role="tabpanel"  >
+        <h2 class="h2">Panel de Administración</h2>
+        <div class="cards-grid">
+          <article class="card">
+            <h3 class="card-title">Usuarios</h3>
+            <p class="card-text">Gestión básica de usuarios y saldos.</p>
+            <button class="btn" data-action="open-admin-users">Abrir</button>
+          </article>
+          <article class="card">
+            <h3 class="card-title">Transacciones</h3>
+            <p class="card-text">Revisión de depósitos y retiros.</p>
+            <button class="btn" data-action="open-admin-tx">Abrir</button>
+          </article>
+        </div>
+      </div>
 
     <!-- Paneles -->
     <section class="tab-panels">
@@ -120,7 +106,7 @@ export default {
         <div class="cards-grid">
           <article class="card game" data-game="ruleta">
             <h3 class="card-title">Ruleta</h3>
-            <img src="https://png.pngtree.com/png-clipart/20241009/original/pngtree-roulette-game-in-pixel-art-style-png-image_16249811.png" alt="" >
+            <img src="/img/ruleta.png" alt="" >
             <p class="card-text">
               Gira y gana. Configura tu apuesta y cruza los dedos.
             </p>
@@ -131,7 +117,7 @@ export default {
 
           <article class="card game" data-game="blackjack">
             <h3 class="card-title">tragamonedas</h3>
-            <img src="https://i.redd.it/8iwvfxxg2efe1.png" alt="" srcset="">
+            <img src="/img/tragamonedas.png" alt="" srcset="">
             <p class="card-text">
               nose usted ya sabra, tu apuesta tu perder
             </p>
@@ -142,9 +128,9 @@ export default {
 
           <article class="card game" data-game="poker">
             <h3 class="card-title">Póker</h3>
-            <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTYWJWVbDcT413-oX0ekFgFcRqdCH_8tTVzKg&s" alt="" srcset="">
+            <img src="/img/poker.png" alt="" srcset="">
             <p class="card-text">Arma la mejor mano y vence a la mesa.</p>
-            <button class="btn play" @click="tragaperras">
+            <button class="btn play" @click="poker">
               Jugar
             </button>
           </article>
@@ -152,7 +138,7 @@ export default {
       </div>
 
       <!-- Apuestas -->
-      <div class="tab-panel" id="panel-apuestas" role="tabpanel" hidden>
+      <div class="tab-panel" id="panel-apuestas" role="tabpanel" >
         <h2 class="h2">Apuestas Deportivas</h2>
         <div class="list">
           <div class="list-item">
@@ -177,7 +163,7 @@ export default {
       </div>
 
       <!-- Slots -->
-      <div class="tab-panel" id="panel-slots" role="tabpanel" hidden>
+      <div class="tab-panel" id="panel-slots" role="tabpanel" >
         <h2 class="h2">Slots</h2>
         <div class="cards-grid">
           <article class="card slot" data-game="slot-classic">
@@ -206,21 +192,7 @@ export default {
       </div>
 
       <!-- Admin (visible solo si role=admin) -->
-      <div class="tab-panel" id="panel-admin" role="tabpanel" hidden>
-        <h2 class="h2">Panel de Administración</h2>
-        <div class="cards-grid">
-          <article class="card">
-            <h3 class="card-title">Usuarios</h3>
-            <p class="card-text">Gestión básica de usuarios y saldos.</p>
-            <button class="btn" data-action="open-admin-users">Abrir</button>
-          </article>
-          <article class="card">
-            <h3 class="card-title">Transacciones</h3>
-            <p class="card-text">Revisión de depósitos y retiros.</p>
-            <button class="btn" data-action="open-admin-tx">Abrir</button>
-          </article>
-        </div>
-      </div>
+      
     </section>
   </main>
 
@@ -284,7 +256,7 @@ export default {
           id="confirm-withdraw"
           data-action="confirm-withdraw"
         >
-          Confirmar
+        <a href="https://www.youtube.com/watch?v=xvFZjo5PgG0&list=RDxvFZjo5PgG0&start_radio=1" target="_blank">confirmar</a>
         </button>
       </div>
     </div>
@@ -435,8 +407,6 @@ export default {
 .modal-body {
   margin-top: 10px;
 }
-
-
 
 .btn.destructive {
   background-color: #ff4d4d;

@@ -161,7 +161,7 @@ export default {
       minBet: 5,
       maxBet: 100,
       betStep: 5,
-      spinning: false,
+      spsinning: false,
       lastWin: 0,
       winMessage: '',
       reels: ['🍒', '🍊', '🍋'],

@@ -4,7 +4,8 @@ export default {
   data() {
     return {
       loginPasswordError: "",
-      signupPasswordError: ""
+      signupPasswordError: "",
+      SignupNameError: ""
     };
   },
   mounted() {
@@ -117,7 +118,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     t.textContent = msg;
     t.style.opacity = '1';
-    setTimeout(() => t.style.opacity = '0', 1600);
+    setTimeout(() => t.style.opacity = '0', 3000);
   }
 
   // ---------- Submit: LOGIN ----------
@@ -180,6 +181,12 @@ document.addEventListener('DOMContentLoaded', () => {
         toast(this.signupPasswordError);
         return;
       }
+      // Validar nombre 
+      this.validateSignupName();
+      if (this.SignupNameError) {
+        toast(this.SignupNameError);
+        return;
+      }
 
       if (!isAdult(dob)) { toast('Debes ser mayor de 18 años'); return; }
       
@@ -238,6 +245,13 @@ document.addEventListener('DOMContentLoaded', () => {
         this.signupPasswordError = ""; // Sin errores
       }
     },
+    validateSignupName(name) {
+      if (/[^a-zA-Z\s]/.test(name)) {
+        this.SignupNameError= "El nombre solo puede contener letras y espacios.";
+      } else {
+        this.SignupNameError= ""; // Sin errores
+      }
+    }
   }
 }
 </script>
@@ -247,12 +261,6 @@ document.addEventListener('DOMContentLoaded', () => {
     <!-- cabecera con logo y bandera -->
     <header class="hero">
       <img src="/img/Logo_PascualBet.png" alt="Logo" class="avatar"/>
-
-      <h1 class="title">
-        <span>Bienvenido a</span>
-        <span class="brand">PascualBet</span>
-      </h1>
-      <p class="subtitle">Tu casino online de confianza.</p>
     </header>
 
     <!-- tarjeta -->
@@ -313,7 +321,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </label>
 
         <!-- Mensaje de restricciones -->
-        <p class="info">
+        <p class="info ">
           La contraseña debe cumplir con las siguientes restricciones:
           <ul>
             <li>Mínimo 12 caracteres y máximo 24 caracteres.</li>
