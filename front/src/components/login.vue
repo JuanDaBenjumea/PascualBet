@@ -1,6 +1,12 @@
 <script>
 export default {
   name: "Login",
+  data() {
+    return {
+      loginPasswordError: "",
+      signupPasswordError: ""
+    };
+  },
   mounted() {
     // login.js (adaptado con redirección a index.html al loguear)
 document.addEventListener('DOMContentLoaded', () => {
@@ -123,7 +129,12 @@ document.addEventListener('DOMContentLoaded', () => {
       e.preventDefault();
       const uid = loginUid?.value.trim();
       const password = loginPwd?.value.trim();
-      if (!uid || !password) { toast('Completa ID y contraseña'); return; }
+      
+      // Validar en el momento del submit
+      if (!uid || !password) { 
+        toast('Completa ID y contraseña'); 
+        return; 
+      }
 
       // Bloquear botón para evitar doble submit
       const btn = loginForm.querySelector('button[type="submit"]');
@@ -163,8 +174,15 @@ document.addEventListener('DOMContentLoaded', () => {
       const password = suPwd?.value.trim();
       const dob = suDob?.value; // 'YYYY-MM-DD'
 
-      if (!isAdult(dob)) { toast('Debes ser mayor de 18 años'); return; }
+      // Validar contraseña antes de enviar
+      this.validateSignupPassword(password);
+      if (this.signupPasswordError) {
+        toast(this.signupPasswordError);
+        return;
+      }
 
+      if (!isAdult(dob)) { toast('Debes ser mayor de 18 años'); return; }
+      
       const btn = signupForm.querySelector('button[type="submit"]');
       if (btn) btn.disabled = true;
 
@@ -186,20 +204,46 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+
+  // Remover el event listener duplicado que causaba conflictos
 });
+
   },
   methods: {
     logout() {
       // Elimina la sesión y redirige al login
       localStorage.removeItem('pb:session');
       this.$router.replace('/'); // Redirige al login
-    }
+    },
+    validateLoginPassword(password) {
+      // Para login, permitimos más flexibilidad - solo validamos si hay contenido cuando se intenta enviar
+      // No mostramos errores mientras se escribe, solo cuando está vacío y se intenta enviar
+      this.loginPasswordError = ""; // Limpiamos errores mientras se escribe
+    },
+    validateSignupPassword(password) {
+      const minLength = 12;
+      const maxLength = 24;
+      const specialCharRegex = /[^a-zA-Z0-9]/; // Detecta caracteres especiales
+      const numberRegex = /\d/; // Detecta al menos un número
+
+      if (password.length < minLength) {
+        this.signupPasswordError = `La contraseña debe tener al menos ${minLength} caracteres.`;
+      } else if (password.length > maxLength) {
+        this.signupPasswordError = `La contraseña no puede exceder los ${maxLength} caracteres.`;
+      } else if (specialCharRegex.test(password)) {
+        this.signupPasswordError = "La contraseña no puede contener caracteres especiales.";
+      } else if (!numberRegex.test(password)) {
+        this.signupPasswordError = "La contraseña debe contener al menos un número.";
+      } else {
+        this.signupPasswordError = ""; // Sin errores
+      }
+    },
   }
-};
+}
 </script>
 
 <template>
-      <div class="page">
+  <div class="page">
     <!-- cabecera con logo y bandera -->
     <header class="hero">
       <img src="/img/Logo_PascualBet.png" alt="Logo" class="avatar"/>
@@ -228,10 +272,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         <label class="field">
           <span class="label">Contraseña</span>
-          <input class="input" type="password" id="login-pwd" placeholder="Tu contraseña" autocomplete="current-password" required>
+          <input
+            class="input"
+            type="password"
+            id="login-pwd"
+            placeholder="Tu contraseña"
+            autocomplete="current-password"
+            @input="validateLoginPassword($event.target.value)"
+          />
+          <small v-if="loginPasswordError" class="error">{{ loginPasswordError }}</small>
         </label>
 
-        <button class="btn btn-primary" type="submit">ENTRAR</button>
+        <button class="btn btn-primary" type="submit" :disabled="!!loginPasswordError">ENTRAR</button>
 
         <p class="alt">
           ¿No tienes cuenta? ¡Créala ahora!
@@ -248,8 +300,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
         <label class="field">
           <span class="label">Contraseña</span>
-          <input class="input" type="password" id="su-pwd" placeholder="Crea una contraseña segura" autocomplete="new-password" required>
+          <input
+            class="input"
+            type="password"
+            id="su-pwd"
+            placeholder="Crea una contraseña segura"
+            autocomplete="new-password"
+            required
+            @input="validateSignupPassword($event.target.value)"
+          />
+          <small v-if="signupPasswordError" class="error">{{ signupPasswordError }}</small>
         </label>
+
+        <!-- Mensaje de restricciones -->
+        <p class="info">
+          La contraseña debe cumplir con las siguientes restricciones:
+          <ul>
+            <li>Mínimo 12 caracteres y máximo 24 caracteres.</li>
+            <li>No debe contener caracteres especiales.</li>
+            <li>Debe incluir al menos un número.</li>
+          </ul>
+        </p>
 
         <label class="field">
           <span class="label">Nombre Completo</span>
@@ -266,12 +337,11 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="terms">
           <label class="chk">
             <input type="checkbox" id="su-terms">
-            <span>Acepto los términos y condiciones</span>
           </label>
           <button type="button" class="link link-inline" id="open-terms">Leer términos</button>
         </div>
 
-        <button class="btn btn-primary" id="btn-signup" type="submit" disabled>CREAR CUENTA</button>
+        <button class="btn btn-primary" id="btn-signup" type="submit" :disabled="!!signupPasswordError">CREAR CUENTA</button>
 
         <p class="alt">
           ¿Ya tienes cuenta?
@@ -334,3 +404,14 @@ document.addEventListener('DOMContentLoaded', () => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.error {
+  color: #ff4d4d;
+  font-size: 12px;
+  margin-top: 5px;
+  display: block;
+}
+
+
+</style>

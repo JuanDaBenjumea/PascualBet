@@ -2,20 +2,34 @@
 export default {
   data() {
     return {
-      showLogoutModal: false // Controla la visibilidad del modal
+      showLogoutModal: false, // Controla la visibilidad del modal de logout
+      showDepositModal: false, // Controla la visibilidad del modal de depósito
+      showWithdrawModal: false // Controla la visibilidad del modal de retiro
     };
   },
   methods: {
     openLogoutModal() {
-      this.showLogoutModal = true; // Muestra el modal
+      this.showLogoutModal = true; // Muestra el modal de logout
     },
     closeLogoutModal() {
-      this.showLogoutModal = false; // Oculta el modal
+      this.showLogoutModal = false; // Oculta el modal de logout
     },
     logout() {
       // Elimina la sesión y redirige al login
       localStorage.removeItem('pb:session');
       this.$router.replace('/'); // Redirige al login
+    },
+    openDepositModal() {
+      this.showDepositModal = true; // Muestra el modal de depósito
+    },
+    closeDepositModal() {
+      this.showDepositModal = false; // Oculta el modal de depósito
+    },
+    openWithdrawModal() {
+      this.showWithdrawModal = true; // Muestra el modal de retiro
+    },
+    closeWithdrawModal() {
+      this.showWithdrawModal = false; // Oculta el modal de retiro
     }
   }
 };
@@ -34,10 +48,10 @@ export default {
         </div>
         <button class="btn" id="btn-deposit" data-action="open-deposit" aria-haspopup="menu"
             aria-expanded="false"
-            @click="modal-deposit">
+            @click="openDepositModal">
           Depositar
         </button>
-        <button @click="modal-withdraw" >
+        <button @click="openWithdrawModal" >
           Retirar
         </button>
         <div class="avatar-menu">
@@ -169,6 +183,7 @@ export default {
             >
               Girar
             </button>
+            
           </article>
 
           <article class="card slot" data-game="slot-egypt">
@@ -201,13 +216,13 @@ export default {
   </main>
 
   <!-- Modal Depósito -->
-  <div class="modal" id="modal-deposit" role="dialog" aria-modal="true" hidden>
+  <div class="modal" id="modal-deposit" v-if="showDepositModal" role="dialog" aria-modal="true">
     <div class="modal-content">
       <header class="modal-header">
         <h3>Depositar</h3>
         <button
           class="icon-btn"
-          data-action="close-deposit"
+          @click="closeDepositModal"
           aria-label="Cerrar"
         >
           ✕
@@ -232,13 +247,13 @@ export default {
   </div>
 
   <!-- Modal Retiro -->
-  <div class="modal" id="modal-withdraw" role="dialog" aria-modal="true" hidden>
+  <div class="modal" id="modal-withdraw" v-if="showWithdrawModal" role="dialog" aria-modal="true">
     <div class="modal-content">
       <header class="modal-header">
         <h3>Retirar</h3>
         <button
           class="icon-btn"
-          data-action="close-withdraw"
+          @click="closeWithdrawModal"
           aria-label="Cerrar"
         >
           ✕

@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 import index from '../components/index.vue';
 import login from '../components/login.vue';
 import SlotM from '../components/games/slotM.vue';
+import Rulet from '../components/games/rulet.vue';
 
 const routes = [
   {
@@ -28,7 +29,8 @@ const routes = [
       }
     }
   },
-  { path: '/game', component: SlotM }
+  { path: '/slot', component: SlotM },
+  { path: '/rulete', component: Rulet }
 ];
 
 const router = createRouter({
