@@ -1,4 +1,9 @@
 <script>
+import Usuarios from './admin/usuarios.vue';
+import Blackjack from './games/Blackjack.vue';
+import Plinko from './games/plinko.vue';
+import Rocket from './games/rocket.vue';
+
 export default {
   data() {
     return {
@@ -37,8 +42,20 @@ export default {
       ruleta() {
         this.$router.push('/rulete');
       },
-      poker() {
-        this.$router.push('/poker');
+      Blackjack() {
+        this.$router.push('/BJ');
+      },
+      Usuarios() {
+        this.$router.push('/admin/usuarios');
+      },
+      Plinko() {
+        this.$router.push('/plinko');
+      },
+      mines() {
+        this.$router.push('/mines');
+      },
+      rocket() {
+        this.$router.push('/rocket');
       }
   }
 };
@@ -88,10 +105,15 @@ export default {
           <article class="card">
             <h3 class="card-title">Usuarios</h3>
             <p class="card-text">Gestión básica de usuarios y saldos.</p>
-            <button class="btn" data-action="open-admin-users">Abrir</button>
+            <button class="btn" data-action="open-admin-users" @click="Usuarios">Abrir</button>
           </article>
           <article class="card">
             <h3 class="card-title">Transacciones</h3>
+            <p class="card-text">Revisión de depósitos y retiros.</p>
+            <button class="btn" data-action="open-admin-tx">Abrir</button>
+          </article>
+          <article class="card">
+            <h3 class="card-title">juegos</h3>
             <p class="card-text">Revisión de depósitos y retiros.</p>
             <button class="btn" data-action="open-admin-tx">Abrir</button>
           </article>
@@ -101,7 +123,7 @@ export default {
     <!-- Paneles -->
     <section class="tab-panels">
       <!-- Casino -->
-      <div class="tab-panel is-active" id="panel-casino" role="tabpanel">
+      <div class="tab-panel is-active" id="panel-casino" role="tabpanel"> 
         <h2 class="h2">Casino</h2>
         <div class="cards-grid">
           <article class="card game" data-game="ruleta">
@@ -115,84 +137,58 @@ export default {
             </button>
           </article>
 
-          <article class="card game" data-game="blackjack">
+          <article class="card game" data-game="tragamonedas">
             <h3 class="card-title">tragamonedas</h3>
             <img src="/img/tragamonedas.png" alt="" srcset="">
             <p class="card-text">
-              nose usted ya sabra, tu apuesta tu perder
+             junta 3 simbolos y veras como la mama de tus hijos de vuelvea a querrer
             </p>
             <button class="btn play" @click="tragaperras">
               Jugar
             </button>
           </article>
 
-          <article class="card game" data-game="poker">
-            <h3 class="card-title">Póker</h3>
+          <article class="card game" data-game="Blacjack">
+            <h3 class="card-title">Blacjack</h3>
             <img src="/img/poker.png" alt="" srcset="">
             <p class="card-text">Arma la mejor mano y vence a la mesa.</p>
-            <button class="btn play" @click="poker">
+            <button class="btn play" @click="Blackjack">
+              Jugar
+            </button>
+          </article>
+
+          <article class="card game" data-game="plinko">
+            <h3 class="card-title">plinko</h3>
+            <img src="/img/plinko.jpg" alt="" >
+            <p class="card-text">
+              bolita hacer boing boing
+            </p>
+            <button class="btn play" @click="Plinko">
+              Jugar
+            </button>
+          </article>
+
+          <article class="card game" data-game="mines">
+            <h3 class="card-title">mines</h3>
+            <img src="/img/mines.jpg" alt="" srcset="">
+            <p class="card-text">
+              quiero ser minero romper el pico en el hierro
+            </p>
+            <button class="btn play" @click="mines">
+              Jugar
+            </button>
+          </article>
+
+          <article class="card game" data-game="rocket">
+            <h3 class="card-title">driving in my deer</h3>
+            <img src="/img/rocket.jpg" alt="" srcset="">
+            <p class="card-text">preguntele a su tio ludopata que es este juego</p>
+            <button class="btn play" @click="rocket">
               Jugar
             </button>
           </article>
         </div>
       </div>
-
-      <!-- Apuestas -->
-      <div class="tab-panel" id="panel-apuestas" role="tabpanel" >
-        <h2 class="h2">Apuestas Deportivas</h2>
-        <div class="list">
-          <div class="list-item">
-            <div>
-              <strong>Fútbol</strong>
-              <div class="muted">Barcelona vs. Madrid — 20:00</div>
-            </div>
-            <button class="btn" data-action="bet" data-match-id="m1">
-              Apostar
-            </button>
-          </div>
-          <div class="list-item">
-            <div>
-              <strong>Tennis</strong>
-              <div class="muted">Semifinal — 18:30</div>
-            </div>
-            <button class="btn" data-action="bet" data-match-id="m2">
-              Apostar
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Slots -->
-      <div class="tab-panel" id="panel-slots" role="tabpanel" >
-        <h2 class="h2">Slots</h2>
-        <div class="cards-grid">
-          <article class="card slot" data-game="slot-classic">
-            <h3 class="card-title">Slot Clásico</h3>
-            <p class="card-text">
-              Siete, cerezas y BAR. La clásica de siempre.
-            </p>
-            <button
-              class="btn play"
-              data-action="play"
-              data-game="slot-classic"
-            >
-              Girar
-            </button>
-
-          </article>
-
-          <article class="card slot" data-game="slot-egypt">
-            <h3 class="card-title">Tesoros de Egipto</h3>
-            <p class="card-text">Explora las pirámides en busca de premios.</p>
-            <button class="btn play" data-action="play" data-game="slot-egypt">
-              Girar
-            </button>
-          </article>
-        </div>
-      </div>
-
-      <!-- Admin (visible solo si role=admin) -->
-      
     </section>
   </main>
 
