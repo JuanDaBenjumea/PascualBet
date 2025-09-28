@@ -1,5 +1,10 @@
 <template>
   <div class="roulette-container">
+    <!-- Import Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+
     <!-- Header with theme styling -->
     <header class="game-header">
       <div class="container">
@@ -23,7 +28,7 @@
       class="winner-banner animate-win-pulse"
     >
       <div class="winner-content">
-        <div class="winner-label">🎲 NÚMERO GANADOR 🎲</div>
+        <div class="winner-label">RESULTADO FINAL</div>
         <div class="winner-display">
           <div 
             class="winner-number"
@@ -37,10 +42,10 @@
           </div>
         </div>
         <div v-if="lastWin > 0" class="winner-prize">
-          🏆 GANASTE ${{ lastWin }} 🏆
+          GANANCIA: +${{ lastWin }}
         </div>
         <div v-else class="winner-message">
-          ¡Sigue intentando!
+          SIN PREMIO ESTA RONDA
         </div>
       </div>
     </div>
@@ -52,7 +57,7 @@
         <!-- Roulette Wheel Section -->
         <div class="wheel-section">
           <div class="card wheel-card">
-            <div class="wheel-container">
+            <div class="wheel-container" :class="{ 'spinning': spinning }">
               <canvas 
                 ref="wheelCanvas" 
                 width="320" 
@@ -112,14 +117,14 @@
               >
                 {{ spinning ? 'GIRANDO...' : 'GIRAR RULETA' }}
               </button>
-              <button class="btn play" @click="goBack">
-              volver a menu
-            </button>
+              <button class="btn back-btn" @click="goBack">
+                VOLVER AL MENÚ
+              </button>
             </div>
             
             <!-- Results Display -->
-            <div v-if="lastResult !== null" class="results-panel">
-              <div class="results-header">🏆 ÚLTIMO RESULTADO</div>
+            <div v-if="lastResult !== null && !spinning" class="results-panel">
+              <div class="results-header">ÚLTIMO RESULTADO</div>
               <div class="results-display">
                 <div 
                   class="result-circle"
@@ -133,11 +138,11 @@
                 </div>
               </div>
               <div class="results-outcome">
-                <div v-if="lastWin > 0" class="win-message animate-win-pulse">
-                  💰 ¡GANASTE ${{ lastWin }}! 💰
+                <div v-if="lastWin > 0" class="win-message">
+                  GANANCIA: +${{ lastWin }}
                 </div>
                 <div v-else class="lose-message">
-                  💸 Suerte para la próxima
+                  SIN PREMIO
                 </div>
               </div>
             </div>
@@ -147,7 +152,7 @@
         <!-- Betting Table Section -->
         <div class="betting-section">
           <div class="card betting-table">
-            <h2 class="h2">Mesa de Apuestas</h2>
+            <h2 class="h2">MESA DE APUESTAS</h2>
             
             <!-- Number Grid -->
             <div class="numbers-grid">
@@ -173,7 +178,7 @@
             <div class="zero-section">
               <div 
                 @click="placeBet('number', 0)"
-                class="number-cell zero-cell"
+                class="number-cell zero-cell green"
                 :class="{ 'winning-number': lastResult === 0, 'has-bet': bets.numbers[0] > 0 }"
               >
                 <span class="number-value">0</span>
@@ -187,7 +192,7 @@
             <div class="outside-bets">
               <div 
                 @click="placeBet('color', 'red')"
-                class="bet-cell red-bet"
+                class="bet-cell oval-bet red-bet"
                 :class="{ 'has-bet': bets.colors.red > 0 }"
               >
                 <span>ROJO</span>
@@ -198,7 +203,7 @@
               
               <div 
                 @click="placeBet('color', 'black')"
-                class="bet-cell black-bet"
+                class="bet-cell oval-bet black-bet"
                 :class="{ 'has-bet': bets.colors.black > 0 }"
               >
                 <span>NEGRO</span>
@@ -209,7 +214,7 @@
               
               <div 
                 @click="placeBet('parity', 'even')"
-                class="bet-cell parity-bet"
+                class="bet-cell oval-bet parity-bet"
                 :class="{ 'has-bet': bets.parity.even > 0 }"
               >
                 <span>PAR</span>
@@ -220,7 +225,7 @@
               
               <div 
                 @click="placeBet('parity', 'odd')"
-                class="bet-cell parity-bet"
+                class="bet-cell oval-bet parity-bet"
                 :class="{ 'has-bet': bets.parity.odd > 0 }"
               >
                 <span>IMPAR</span>
@@ -234,7 +239,7 @@
             <div class="range-bets">
               <div 
                 @click="placeBet('range', 'low')"
-                class="bet-cell range-bet"
+                class="bet-cell oval-bet range-bet"
                 :class="{ 'has-bet': bets.ranges.low > 0 }"
               >
                 <span>1-18</span>
@@ -245,7 +250,7 @@
               
               <div 
                 @click="placeBet('range', 'high')"
-                class="bet-cell range-bet"
+                class="bet-cell oval-bet range-bet"
                 :class="{ 'has-bet': bets.ranges.high > 0 }"
               >
                 <span>19-36</span>
@@ -258,7 +263,7 @@
             <!-- Bet Controls -->
             <div class="bet-controls">
               <div class="bet-amounts">
-                <div class="muted">Valor de apuesta:</div>
+                <div class="muted">VALOR DE LA FICHA:</div>
                 <div class="amount-buttons">
                   <button 
                     v-for="amount in betAmounts" 
@@ -275,10 +280,9 @@
               <div class="action-buttons">
                 <button 
                   @click="clearAllBets"
-                  class="btn"
-                  style="background: linear-gradient(180deg, var(--danger), #dc2626);"
+                  class="btn clear-btn"
                 >
-                  Limpiar Apuestas
+                  LIMPIAR APUESTAS
                 </button>
               </div>
             </div>
@@ -300,6 +304,8 @@ export default {
       lastWin: 0,
       currentBetAmount: 10,
       betAmounts: [5, 10, 25, 50, 100],
+      // Secuencia de números de la ruleta europea
+      wheelNumbers: [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26],
       numbers: Array.from({length: 37}, (_, i) => i), // 0-36
       redNumbers: [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36],
       bets: {
@@ -466,26 +472,37 @@ export default {
       const canvas = this.$refs.wheelCanvas;
       if (!canvas) return;
       
+      // Normalizamos AMBOS ángulos para que cada animación empiece desde un estado limpio.
+      // Esto evita la acumulación de valores muy grandes que rompían la animación.
+      const initialWheelAngle = this.wheelAngle % 360;
+      const initialBallAngle = this.ballAngle % 360; 
+
       // Calculate target angles
-      const targetWheelAngle = this.wheelAngle + 1800 + Math.random() * 360; // Multiple spins
-      const targetBallAngle = (result * (360/37)) + Math.random() * 10 - 5; // Some randomness
+      const finalWheelAngle = initialWheelAngle + 1080 + Math.random() * 720; // 3-5 giros para la ruleta
+      const resultIndex = this.wheelNumbers.indexOf(result); // Encuentra el índice del número ganador
+      const anglePerSegment = 360 / 37;
+      // El ángulo del segmento ganador, ajustado para que el puntero (en la parte superior, 270 grados) quede en el centro del segmento.
+      const targetSegmentAngle = resultIndex * anglePerSegment + anglePerSegment / 2;
+      // El ángulo final de la bola es el ángulo final de la ruleta MÁS el ángulo del segmento ganador,
+      // MENOS varias rotaciones completas para que la bola gire en dirección opuesta.
+      const finalBallAngle = finalWheelAngle + targetSegmentAngle - (360 * 8); // 8 giros en dirección opuesta
       
-      const startTime = Date.now();
-      const duration = 4000; // 4 seconds
+      const startTime = performance.now();
+      const duration = 6000; // Animación más lenta: 6 segundos
       
       const animate = () => {
-        const elapsed = Date.now() - startTime;
+        const elapsed = performance.now() - startTime;
         const progress = Math.min(elapsed / duration, 1);
         
-        // Easing function (ease-out)
-        const easeOut = 1 - Math.pow(1 - progress, 3);
+        // Easing function (ease-out-cubic) para una desaceleración más natural
+        const easeOut = 1 - Math.pow(1 - progress, 4);
         
         // Update angles
-        this.wheelAngle = this.wheelAngle + (targetWheelAngle - this.wheelAngle) * easeOut;
-        this.ballAngle = this.ballAngle + (targetBallAngle - this.ballAngle) * easeOut;
+        this.wheelAngle = initialWheelAngle + (finalWheelAngle - initialWheelAngle) * easeOut; // La ruleta gira en una dirección
+        this.ballAngle = initialBallAngle + (finalBallAngle - initialBallAngle) * easeOut; // La bola interpola a su destino final (que incluye giros negativos)
         
         if (progress < 1) {
-          this.animationId = requestAnimationFrame(animate);
+          this.animationId = requestAnimationFrame(animate); 
         } else {
           // Animation complete
           this.spinning = false;
@@ -510,7 +527,8 @@ export default {
       if (!canvas) return;
       
       const segmentAngle = 360 / 37;
-      const resultAngle = result * segmentAngle;
+      const resultIndex = this.wheelNumbers.indexOf(result);
+      const resultAngle = resultIndex * segmentAngle;
       
       // Calculate position for highlight
       const centerX = 160;
@@ -603,21 +621,21 @@ export default {
       const radius = 150;
       
       // Clear canvas
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);      
       
       // Draw roulette wheel
-      const segmentAngle = (2 * Math.PI) / 37; // 37 numbers (0-36)
+      const segmentAngle = (2 * Math.PI) / 37; // 37 números (0-36)
       
-      for (let i = 0; i < 37; i++) {
-        const startAngle = i * segmentAngle + (this.wheelAngle * Math.PI / 180);
-        const endAngle = (i + 1) * segmentAngle + (this.wheelAngle * Math.PI / 180);
+      this.wheelNumbers.forEach((number, index) => {
+        const startAngle = (index * segmentAngle) + (this.wheelAngle * Math.PI / 180);
+        const endAngle = (index + 1) * segmentAngle + (this.wheelAngle * Math.PI / 180);
         
         // Determine color
         let color;
-        if (i === 0) {
-          color = '#22c55e'; // Green for 0
-        } else if (this.redNumbers.includes(i)) {
-          color = '#dc2626'; // Red
+        if (number === 0) {
+          color = '#004225'; // Verde botella oscuro
+        } else if (this.redNumbers.includes(number)) {
+          color = '#8b0000'; // Burdeos
         } else {
           color = '#1f2937'; // Black
         }
@@ -628,7 +646,7 @@ export default {
         ctx.lineTo(centerX, centerY);
         ctx.fillStyle = color;
         ctx.fill();
-        ctx.strokeStyle = '#fbbf24';
+        ctx.strokeStyle = '#d4af37';
         ctx.lineWidth = 2;
         ctx.stroke();
         
@@ -640,18 +658,18 @@ export default {
         ctx.save();
         ctx.translate(textX, textY);
         ctx.rotate(textAngle + Math.PI / 2);
-        ctx.font = 'bold 16px Arial';
+        ctx.font = 'bold 14px Montserrat';
         ctx.fillStyle = 'white';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(i.toString(), 0, 0);
+        ctx.fillText(number.toString(), 0, 0);
         ctx.restore();
-      }
+      });
       
       // Draw center circle
       ctx.beginPath();
       ctx.arc(centerX, centerY, 20, 0, 2 * Math.PI);
-      ctx.fillStyle = '#fbbf24';
+      ctx.fillStyle = '#d4af37';
       ctx.fill();
       ctx.strokeStyle = '#1f2937';
       ctx.lineWidth = 3;
@@ -660,7 +678,7 @@ export default {
       // Draw outer rim
       ctx.beginPath();
       ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-      ctx.strokeStyle = '#fbbf24';
+      ctx.strokeStyle = '#d4af37';
       ctx.lineWidth = 5;
       ctx.stroke();
     },
@@ -679,14 +697,16 @@ export default {
 <style scoped>
 /* Tema principal usando CSS variables */
 .roulette-container {
-  background: var(--bg);
+  background: #121212;
   color: var(--text);
   min-height: 100vh;
+  font-family: 'Montserrat', sans-serif;
+  text-transform: uppercase;
 }
 
 /* Header */
 .game-header {
-  background: linear-gradient(180deg, var(--primary), #0a4a6b);
+  background: transparent;
   border-bottom: 3px solid var(--border);
 }
 
@@ -702,7 +722,7 @@ export default {
 }
 
 .game-title {
-  font-size: 2rem;
+  font-size: 1.8rem;
   font-weight: bold;
   color: white;
   margin: 0;
@@ -721,7 +741,7 @@ export default {
 
 /* Winner Banner */
 .winner-banner {
-  background: linear-gradient(45deg, var(--warning), #f59e0b);
+  background: linear-gradient(45deg, #1e1e1e, #121212);
   border: 3px solid var(--border);
   border-radius: 12px;
   margin: 1rem;
@@ -734,7 +754,7 @@ export default {
 }
 
 .winner-label {
-  font-size: 1.5rem;
+  font-size: 1rem;
   font-weight: bold;
   color: var(--text);
   margin-bottom: 1rem;
@@ -758,7 +778,7 @@ export default {
   font-size: 2.5rem;
   font-weight: bold;
   color: white;
-  border: 4px solid white;
+  border: 4px solid #d4af37; /* Borde dorado */
   box-shadow: 0 4px 15px rgba(0,0,0,0.4);
 }
 
@@ -816,11 +836,11 @@ export default {
 
 /* Card styling */
 .card {
-  background: var(--card);
+  background: rgba(30, 30, 30, 0.7);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 16px; /* Bordes más redondeados */
   padding: 1.5rem;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.3);
 }
 
 /* Wheel Section */
@@ -830,12 +850,13 @@ export default {
   justify-content: center;
   align-items: center;
   margin-bottom: 2rem;
+  filter: drop-shadow(0 0 25px rgba(212, 175, 55, 0.2)); /* Brillo sutil */
 }
 
 .roulette-wheel {
-  border: 4px solid var(--warning);
+  border: 8px solid #c0c0c0; /* Plateado */
   border-radius: 50%;
-  box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4), inset 0 0 15px rgba(255,255,255,0.1); /* Efecto metálico */
 }
 
 .wheel-pointer {
@@ -847,7 +868,7 @@ export default {
   height: 0;
   border-left: 15px solid transparent;
   border-right: 15px solid transparent;
-  border-top: 25px solid var(--warning);
+  border-top: 25px solid #d4af37;
   z-index: 10;
 }
 
@@ -855,10 +876,10 @@ export default {
   position: absolute;
   width: 16px;
   height: 16px;
-  background: radial-gradient(circle at 30% 30%, white, silver);
+  background: radial-gradient(circle at 30% 30%, #ffffff, #e0e0e0); /* Blanco mate */
   border-radius: 50%;
   z-index: 5;
-  box-shadow: 2px 2px 5px rgba(0,0,0,0.5);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.6), inset 1px 1px 2px rgba(255,255,255,0.4); /* Sombra suave */
 }
 
 /* Result Highlight */
@@ -948,22 +969,36 @@ export default {
   margin-bottom: 2rem;
 }
 
-.spin-btn {
-  font-size: 1.2rem;
-  padding: 1rem 2rem;
-  background: linear-gradient(180deg, var(--danger), #b91c1c);
-  border: none;
+.btn {
   border-radius: 8px;
-  color: white;
-  font-weight: bold;
+  font-weight: 700;
+  transition: all 0.2s ease;
+  letter-spacing: 1px;
+}
+
+.spin-btn {
+  font-size: 1.5rem; /* Botón más grande */
+  padding: 1.2rem 3rem;
+  background: #001f3f; /* Azul marino */
+  border: none;
+  color: #d4af37; /* Texto dorado */
   cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+  box-shadow: 0 4px 15px rgba(0, 31, 63, 0.4);
 }
 
 .spin-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+  box-shadow: 0 6px 25px rgba(212, 175, 55, 0.3); /* Resplandor al hover */
+  filter: brightness(1.1);
+}
+
+.back-btn {
+  background: #1e1e1e;
+  color: #c0c0c0;
+  border: 1px solid #444;
+}
+.back-btn:hover {
+  background: #2a2a2a;
 }
 
 .spin-btn:disabled {
@@ -977,7 +1012,7 @@ export default {
 
 /* Results Panel */
 .results-panel {
-  background: linear-gradient(45deg, var(--warning), #f59e0b);
+  background: rgba(0,0,0,0.2);
   border-radius: 12px;
   padding: 1.5rem;
   color: var(--text);
@@ -985,7 +1020,7 @@ export default {
 
 .results-header {
   text-align: center;
-  font-size: 1.5rem;
+  font-size: 1rem;
   font-weight: bold;
   margin-bottom: 1rem;
 }
@@ -1008,7 +1043,7 @@ export default {
   font-size: 1.8rem;
   font-weight: bold;
   color: white;
-  border: 3px solid white;
+  border: 3px solid #d4af37; /* Borde dorado */
 }
 
 .result-info {
@@ -1016,7 +1051,7 @@ export default {
 }
 
 .result-label {
-  font-size: 1.3rem;
+  font-size: 1.1rem;
   font-weight: bold;
 }
 
@@ -1031,18 +1066,18 @@ export default {
 
 .win-message {
   color: var(--success);
-  font-size: 1.4rem;
+  font-size: 1rem;
   font-weight: bold;
 }
 
 .lose-message {
   color: var(--muted);
-  font-size: 1.2rem;
+  font-size: 1rem;
 }
 
 /* Betting Table */
 .h2 {
-  font-size: 1.5rem;
+  font-size: 1.8rem;
   font-weight: bold;
   text-align: center;
   margin-bottom: 1.5rem;
@@ -1053,7 +1088,7 @@ export default {
 .numbers-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 0.5rem;
+  gap: 8px; /* Espaciado uniforme */
   margin-bottom: 1.5rem;
 }
 
@@ -1063,20 +1098,21 @@ export default {
   color: white;
   padding: 1rem;
   text-align: center;
-  border-radius: 8px;
+  border-radius: 6px; /* Bordes apenas redondeados */
   cursor: pointer;
   transition: all 0.3s ease;
   font-weight: bold;
-  border: 2px solid transparent;
+  border: 1px solid transparent;
+  box-shadow: inset 0 0 5px rgba(0,0,0,0.5);
 }
 
 .number-cell:hover {
   transform: scale(1.05);
-  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+  box-shadow: 0 0 15px rgba(212, 175, 55, 0.4); /* Resplandor dorado */
 }
 
 .number-cell.red {
-  background: var(--danger);
+  background: #8b0000; /* Burdeos */
 }
 
 .number-cell.black {
@@ -1084,7 +1120,7 @@ export default {
 }
 
 .number-cell.green {
-  background: var(--success);
+  background: #004225; /* Verde botella */
 }
 
 .number-cell.winning-number {
@@ -1094,8 +1130,8 @@ export default {
 }
 
 .number-cell.has-bet {
-  border-color: var(--warning);
-  box-shadow: 0 0 10px var(--warning);
+  border-color: #d4af37;
+  box-shadow: 0 0 10px #d4af37;
 }
 
 .number-value {
@@ -1106,7 +1142,7 @@ export default {
   position: absolute;
   top: -8px;
   right: -8px;
-  background: var(--warning);
+  background: #d4af37;
   color: var(--text);
   border-radius: 50%;
   width: 24px;
@@ -1134,7 +1170,7 @@ export default {
 .outside-bets {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 0.5rem;
+  gap: 10px;
   margin-bottom: 1.5rem;
 }
 
@@ -1142,7 +1178,7 @@ export default {
   position: relative;
   padding: 1rem;
   text-align: center;
-  border-radius: 8px;
+  border-radius: 30px; /* Ovalado */
   cursor: pointer;
   transition: all 0.3s ease;
   font-weight: bold;
@@ -1151,37 +1187,41 @@ export default {
 }
 
 .bet-cell:hover {
-  transform: scale(1.02);
-  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+  transform: translateY(-2px);
+  filter: brightness(1.2);
 }
 
 .bet-cell.has-bet {
-  border-color: var(--warning);
-  box-shadow: 0 0 10px var(--warning);
+  border-color: #d4af37;
+  box-shadow: 0 0 10px #d4af37;
 }
 
 .red-bet {
-  background: var(--danger);
+  background: #8b0000;
+  box-shadow: 0 0 15px rgba(139, 0, 0, 0.4);
 }
 
 .black-bet {
-  background: #1f2937;
+  background: linear-gradient(145deg, #4b5563, #1f2937);
+  box-shadow: 0 0 15px rgba(75, 85, 99, 0.4);
 }
 
 .parity-bet {
-  background: var(--primary);
+  background: linear-gradient(145deg, #3b82f6, #2563eb);
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
 }
 
 /* Range Bets */
 .range-bets {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 0.5rem;
+  gap: 10px;
   margin-bottom: 1.5rem;
 }
 
 .range-bet {
-  background: var(--secondary);
+  background: linear-gradient(145deg, #6b7280, #4b5563);
+  box-shadow: 0 0 15px rgba(107, 114, 128, 0.4);
 }
 
 /* Bet Controls */
@@ -1209,7 +1249,7 @@ export default {
 
 .btn-outline {
   background: transparent;
-  border: 2px solid var(--primary);
+  border: 2px solid #d4af37;
   color: var(--primary);
   padding: 0.5rem 1rem;
   border-radius: 6px;
@@ -1219,12 +1259,12 @@ export default {
 }
 
 .btn-outline:hover {
-  background: var(--primary);
+  background: #d4af37;
   color: white;
 }
 
 .btn-outline.active {
-  background: var(--primary);
+  background: #d4af37;
   color: white;
 }
 
@@ -1233,23 +1273,19 @@ export default {
 }
 
 .action-buttons {
+  margin-top: 1rem;
   text-align: center;
 }
 
-.btn {
-  background: var(--primary);
+.clear-btn {
+  background: #4a4a4a;
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;
-  border-radius: 6px;
   cursor: pointer;
-  font-weight: bold;
-  transition: all 0.3s ease;
 }
-
-.btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+.clear-btn:hover {
+  background: #616161;
 }
 
 /* Animations */

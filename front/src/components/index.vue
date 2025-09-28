@@ -1,4 +1,6 @@
 <script>
+import Juegos from './admin/juegos.vue';
+import Transaciones from './admin/transaciones.vue';
 import Usuarios from './admin/usuarios.vue';
 import Blackjack from './games/Blackjack.vue';
 import Plinko from './games/plinko.vue';
@@ -36,6 +38,15 @@ export default {
     closeWithdrawModal() {
       this.showWithdrawModal = false; // Oculta el modal de retiro
     },
+    Transaciones() {
+        this.$router.push('/admin/transaciones');
+      },
+      Usuarios() {
+        this.$router.push('/admin/usuarios');
+      },
+      Juegos() {
+        this.$router.push('/admin/juegos');
+      },
     tragaperras() {
         this.$router.push('/slot');
       },
@@ -45,9 +56,7 @@ export default {
       Blackjack() {
         this.$router.push('/BJ');
       },
-      Usuarios() {
-        this.$router.push('/admin/usuarios');
-      },
+      
       Plinko() {
         this.$router.push('/plinko');
       },
@@ -77,7 +86,7 @@ export default {
             @click="openDepositModal">
           Depositar
         </button>
-        <button @click="openWithdrawModal" >
+        <button class="btn" @click="openWithdrawModal">
           Retirar
         </button>
         <div class="avatar-menu">
@@ -110,12 +119,12 @@ export default {
           <article class="card">
             <h3 class="card-title">Transacciones</h3>
             <p class="card-text">Revisión de depósitos y retiros.</p>
-            <button class="btn" data-action="open-admin-tx">Abrir</button>
+            <button class="btn" data-action="open-admin-tx"  @click="Transaciones">Abrir</button>
           </article>
           <article class="card">
             <h3 class="card-title">juegos</h3>
             <p class="card-text">Revisión de depósitos y retiros.</p>
-            <button class="btn" data-action="open-admin-tx">Abrir</button>
+            <button class="btn" data-action="open-admin-tx"  @click="Juegos">Abrir</button>
           </article>
         </div>
       </div>
@@ -206,15 +215,27 @@ export default {
         </button>
       </header>
       <div class="modal-body">
+        <!-- Campo para seleccionar el banco -->
         <label class="field">
-          <span>Monto</span>
+          <span>Banco de Origen</span>
+          <select id="deposit-bank" class="input">
+            <option value="bancolombia">Bancolombia</option>
+            <option value="nequi">Nequi</option>
+            <option value="davivienda">Davivienda</option>
+          </select>
+        </label>
+
+        <!-- Campo para el monto -->
+        <label class="field">
+          <span>Monto (COP)</span>
           <input
             type="number"
             id="deposit-amount"
-            min="0"
+            min="10000"
             step="1000"
-            placeholder="0"
+            placeholder="10000"
           />
+          <small class="info-text">El monto mínimo para depositar es de $10,000 COP.</small>
         </label>
         <button class="btn" id="confirm-deposit" data-action="confirm-deposit">
           <a href="https://www.youtube.com/watch?v=xvFZjo5PgG0&list=RDxvFZjo5PgG0&start_radio=1" target="_blank">confirmar</a>
@@ -237,15 +258,37 @@ export default {
         </button>
       </header>
       <div class="modal-body">
+        <!-- Campo para seleccionar el banco de destino -->
         <label class="field">
-          <span>Monto</span>
+          <span>Banco de Destino</span>
+          <select id="withdraw-bank" class="input">
+            <option value="bancolombia">Bancolombia</option>
+            <option value="nequi">Nequi</option>
+            <option value="davivienda">Davivienda</option>
+          </select>
+        </label>
+
+        <!-- Campo para el número de cuenta -->
+        <label class="field">
+          <span>Número de Cuenta/Celular</span>
+          <input
+            type="text"
+            id="withdraw-account"
+            placeholder="Escribe tu número de cuenta o celular"
+          />
+        </label>
+
+        <!-- Campo para el monto -->
+        <label class="field">
+          <span>Monto a Retirar (COP)</span>
           <input
             type="number"
             id="withdraw-amount"
-            min="0"
+            min="20000"
             step="1000"
-            placeholder="0"
+            placeholder="20000"
           />
+          <small class="info-text">El monto mínimo para retirar es de $20,000 COP.</small>
         </label>
         <button
           class="btn btn-outline"
@@ -411,6 +454,12 @@ export default {
   padding: 10px 20px;
   border-radius: 5px;
   cursor: pointer;
+}
+
+.info-text {
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 4px;
 }
 
 .btn.destructive:hover {
