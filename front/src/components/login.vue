@@ -137,10 +137,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return; 
       }
 
-      // Bloquear botón para evitar doble submit
-      const btn = loginForm.querySelector('button[type="submit"]');
-      if (btn) btn.disabled = true;
-
       try {
         const r = await fetch(`${API_BASE}/api/login`, {
           method:'POST',
@@ -150,7 +146,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = await r.json();
         if (!r.ok || !data.ok) throw new Error(data.error || 'Error de login');
 
-        // Guardar mini sesión (ajústalo a tus necesidades)
         localStorage.setItem('pb:session', JSON.stringify({
           uid, rol: data.rol, saldo: data.saldo, dob: data.dob, ts: Date.now()
         }));
@@ -165,17 +160,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // ---------- Submit: SIGNUP ----------
-  if (signupForm) {
-    signupForm.addEventListener('submit', async e => {
-      e.preventDefault();
-      if (btnSignup?.disabled) return;
-
-      const uid = suUid?.value.trim();
-      const password = suPwd?.value.trim();
-      const dob = suDob?.value; // 'YYYY-MM-DD'
-
-      // Validar contraseña antes de enviar
       this.validateSignupPassword(password);
       if (this.signupPasswordError) {
         toast(this.signupPasswordError);
