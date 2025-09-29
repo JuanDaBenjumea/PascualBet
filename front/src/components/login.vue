@@ -14,6 +14,7 @@ export default {
       signupName: '',
       signupDob: '',
       signupTerms: false,
+      showTermsModal: false, // Para controlar el modal de términos
       loginPasswordError: "",
       signupPasswordError: "",
       signupConfirmPasswordError: "", // Nuevo estado para el error de confirmación
@@ -27,121 +28,10 @@ export default {
     };
   },
   mounted() {
-    // login.js (adaptado con redirección a index.html al loguear)
-    // ---------- Tabs ----------
-
-  const tabButtons = document.querySelectorAll('.tab');
-  const loginForm = document.getElementById('form-login');
-  const signupForm = document.getElementById('form-signup');
-
-  function switchTo(tab) {
-    tabButtons.forEach((b) => b.classList.toggle('is-active', b.dataset.tab === tab));
-    const showLogin = tab === 'login';
-    if (loginForm) {
-      loginForm.hidden = !showLogin;
-      loginForm.classList.toggle('is-active', showLogin);
-    }
-    if (signupForm) {
-      signupForm.hidden = showLogin;
-      signupForm.classList.toggle('is-active', !showLogin);
-    }
-  }
-
-  // Registrar eventos para las pestañas
-  tabButtons.forEach((b) => {
-    b.addEventListener('click', () => switchTo(b.dataset.tab));
-  });
-
-  document.querySelectorAll('[data-tab-target]').forEach((a) => {
-    a.addEventListener('click', (e) => {
-      e.preventDefault();
-      switchTo(a.dataset.tabTarget);
-    });
-  });
-
-  // Configurar el estado inicial
-  switchTo('login');
-
-  // ---------- DOB (fecha) ----------
-  const dob = document.getElementById('su-dob');
-  if (dob) {
-    const t = new Date();
-    const max = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
-    dob.setAttribute('max', max);
-
-    const toggleFilled = () => dob.classList.toggle('filled', !!dob.value);
-    dob.addEventListener('input', toggleFilled);
-    toggleFilled();
-  }
-
-  // Función edad >= 18
-  function isAdult(isoDate) {
-    if (!isoDate) return false;
-    const d = new Date(isoDate);
-    const today = new Date();
-    const eighteen = new Date(d.getFullYear() + 18, d.getMonth(), d.getDate());
-    return eighteen <= today;
-  }
-
-  // ---------- Términos & habilitar botón ----------
-  const termsChk = document.getElementById('su-terms');
-  const btnSignup = document.getElementById('btn-signup');
-  const openTerms = document.getElementById('open-terms');
-  const modal = document.getElementById('terms-modal');
-  const closeTerms = document.getElementById('close-terms');
-  const acceptTermsModal = document.getElementById('accept-terms-modal');
-
-  const suUid  = document.getElementById('su-uid');
-  const suPwd  = document.getElementById('su-pwd');
-  const suName = document.getElementById('su-name'); // opcional en tu DB
-  const suDob  = document.getElementById('su-dob');
-
-  const requiredSignup = [suUid, suPwd, suDob]; // suName opcional
-
-  function validateSignup() {
-    const filled = requiredSignup.every(el => el && String(el.value).trim().length > 0);
-    const adult  = isAdult(suDob?.value);
-    const ok = filled && !!termsChk?.checked && adult;
-    if (btnSignup) btnSignup.disabled = !ok;
-  }
-
-  if (openTerms) openTerms.addEventListener('click', () => { if (modal) modal.hidden = false; });
-  if (closeTerms) closeTerms.addEventListener('click', () => { if (modal) modal.hidden = true; });
-  if (acceptTermsModal) acceptTermsModal.addEventListener('click', () => {
-    if (termsChk) termsChk.checked = true;
-    if (modal) modal.hidden = true;
-    validateSignup();
-  });
-  if (termsChk) termsChk.addEventListener('change', validateSignup);
-  [suUid, suPwd, suDob].forEach(el => el && el.addEventListener('input', validateSignup));
-  validateSignup();
-
-  // ---------- API ----------
-  const API_BASE = 'http://localhost:4000';
-
-  // Toast
-  function toast(msg){
-    let t = document.getElementById('toast');
-    if (!t){
-      t = document.createElement('div');
-      t.id = 'toast';
-      Object.assign(t.style, {
-        position:'fixed', left:'50%', bottom:'28px', transform:'translateX(-50%)',
-        background:'#0b1119', color:'#e6ecf3', border:'1px solid #223042',
-        padding:'12px 14px', borderRadius:'10px', boxShadow:'0 10px 25px rgba(0,0,0,.35)',
-        zIndex:'9999', fontFamily:'"Press Start 2P", monospace, sans-serif', fontSize:'12px'
-      });
-      document.body.appendChild(t);
-    }
-    t.textContent = msg;
-    t.style.opacity = '1';
-    setTimeout(() => t.style.opacity = '0', 3000);
-  }
-
+    // No necesitas toggleFilled aquí, puedes eliminarlo si no lo usas
   },
   methods: {
     logout() {
-      // Elimina la sesión y redirige al login
       localStorage.removeItem('pb:session');
       this.$router.replace('/'); // Redirige al login
     },
@@ -152,7 +42,6 @@ export default {
         this.toast('Completa ID y contraseña');
         return;
       }
-
       try {
         const r = await fetch(`http://localhost:4000/api/login`, {
           method: 'POST',
@@ -161,22 +50,17 @@ export default {
         });
         const data = await r.json();
         if (!r.ok || !data.ok) throw new Error(data.error || 'Error de login');
-
         localStorage.setItem('pb:session', JSON.stringify({
           uid, rol: data.rol, saldo: data.saldo, dob: data.dob, ts: Date.now()
         }));
-
         this.$router.push("/menu");
       } catch (err) {
         this.toast(err.message);
       }
     },
     async handleSignup() {
-      const uid = this.signupUid.trim();
-      const password = this.signupPwd.trim();
-      const dob = this.signupDob;
-
-      this.validateSignupPassword(password);
+      // Llama a las validaciones antes de enviar
+      this.validateSignupPassword(this.signupPwd);
       this.validateConfirmPassword();
       this.validateSignupName(this.signupName);
 
@@ -184,11 +68,14 @@ export default {
         this.toast("Por favor, corrige los errores del formulario.");
         return;
       }
-      
       if (!this.signupTerms) {
         this.toast("Debes aceptar los términos y condiciones.");
         return;
       }
+      const uid = this.signupUid.trim();
+      const password = this.signupPwd.trim();
+      const dob = this.signupDob;
+      const nombre = this.signupName.trim();
 
       function isAdult(isoDate) {
         if (!isoDate) return false;
@@ -197,64 +84,64 @@ export default {
         const eighteen = new Date(d.getFullYear() + 18, d.getMonth(), d.getDate());
         return eighteen <= today;
       }
-
       if (!isAdult(dob)) {
         this.toast('Debes ser mayor de 18 años');
         return;
       }
-
       try {
         const r = await fetch(`http://localhost:4000/api/signup`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ uid, password, dob })
+          body: JSON.stringify({ uid, name: nombre, password, dob })
         });
         const data = await r.json();
         if (!r.ok || !data.ok) throw new Error(data.error || 'Error al crear la cuenta');
-
         this.toast('Cuenta creada con éxito. Ahora puedes iniciar sesión.');
-        this.activeTab = 'login'; // Cambiar a la pestaña de login
+        this.activeTab = 'login';
       } catch (err) {
         this.toast(err.message);
       }
     },
     toast(msg) {
-      // Esta es una implementación simple. Considera usar una librería de toasts.
       alert(msg);
     },
     validateLoginPassword(password) {
-      // Para login, permitimos más flexibilidad - solo validamos si hay contenido cuando se intenta enviar
-      // No mostramos errores mientras se escribe, solo cuando está vacío y se intenta enviar
-      this.loginPasswordError = ""; // Limpiamos errores mientras se escribe
+      this.loginPasswordError = "";
     },
     validateSignupPassword(password) {
       // Actualiza el estado de cada requisito dinámicamente
       this.passwordRequirements.forEach(req => {
         req.met = req.test(password);
       });
-
       const allMet = this.passwordRequirements.every(req => req.met);
-      if (password.length > 0 && !allMet) {
+      if (password.length === 0) {
+        this.signupPasswordError = "";
+      } else if (!allMet) {
         this.signupPasswordError = "La contraseña no cumple todos los requisitos.";
       } else {
-        this.signupPasswordError = ""; // Sin errores
+        this.signupPasswordError = "";
       }
-      this.validateConfirmPassword(); // Validar la confirmación cada vez que la original cambia
+      this.validateConfirmPassword();
     },
     validateConfirmPassword() {
-      // Usa el estado de Vue en lugar de `getElementById`
       if (this.signupConfirmPwd && this.signupPwd !== this.signupConfirmPwd) {
         this.signupConfirmPasswordError = "Las contraseñas no coinciden.";
       } else {
-        this.signupConfirmPasswordError = ""; // Sin errores
+        this.signupConfirmPasswordError = "";
       }
     },
     validateSignupName(name) {
-      if (/[^a-zA-Z\s]/.test(name)) {
-        this.SignupNameError= "El nombre solo puede contener letras y espacios.";
+      if (!name || name.trim().length === 0) {
+        this.SignupNameError = "El nombre es obligatorio.";
+      } else if (/[^a-zA-Z\s]/.test(name)) {
+        this.SignupNameError = "El nombre solo puede contener letras y espacios.";
       } else {
-        this.SignupNameError= ""; // Sin errores
+        this.SignupNameError = "";
       }
+    },
+    acceptTerms() {
+      this.signupTerms = true;
+      this.showTermsModal = false;
     }
   }
 }
@@ -371,7 +258,7 @@ export default {
           <label class="chk">
             <input v-model="signupTerms" type="checkbox" id="su-terms">
           </label>
-          <button type="button" class="link link-inline" id="open-terms">Leer términos</button>
+          <button type="button" class="link link-inline" @click="showTermsModal = true">Leer términos</button>
         </div>
 
         <button class="btn btn-primary" type="submit" :disabled="!!signupPasswordError || !!signupConfirmPasswordError || !!SignupNameError || !signupTerms">CREAR CUENTA</button>
@@ -385,11 +272,11 @@ export default {
   </div>
 
   <!-- MODAL: Términos y condiciones -->
-  <div class="modal" id="terms-modal" role="dialog" aria-modal="true" hidden>
+  <div v-if="showTermsModal" class="modal" role="dialog" aria-modal="true">
     <div class="modal-box">
       <header class="modal-header">
         <h3>Términos y Condiciones</h3>
-        <button class="icon-btn" id="close-terms" aria-label="Cerrar">✕</button>
+        <button class="icon-btn" @click="showTermsModal = false" aria-label="Cerrar">✕</button>
       </header>
       <div class="modal-body scroll">
         <p>Estos Términos y Condiciones regulan el uso de la plataforma PascualBet...</p>
@@ -432,7 +319,7 @@ export default {
         </ol>
       </div>
       <footer class="modal-footer">
-        <button class="btn btn-primary" id="accept-terms-modal">Aceptar</button>
+        <button class="btn btn-primary" @click="acceptTerms">Aceptar</button>
       </footer>
     </div>
   </div>

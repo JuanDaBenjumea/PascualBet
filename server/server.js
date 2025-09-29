@@ -74,11 +74,12 @@ app.get('/api/health/raw', async (_req,res)=>{
 
 /**
  * POST /api/signup
- * body: { uid, password, dob }  // dob: 'YYYY-MM-DD'
+ * body: { uid, name, password, dob }  // dob: 'YYYY-MM-DD'
  */
 app.post('/api/signup', async (req, res) => {
-  const { uid, password, dob } = req.body || {};
-  if (!uid || !password) return res.status(400).json({ ok:false, error: 'uid y password requeridos' });
+  const { uid, name, password, dob } = req.body || {};
+  if (!uid || !password) return res.status(400).json({ ok:false, error: 'uid y contraseña requeridos' });
+  if (!name) return res.status(400).json({ ok:false, error: 'nombre requerido' });
   if (!dob) return res.status(400).json({ ok:false, error: 'fecha_nacimiento requerida' });
   if (!isAdult(dob)) return res.status(400).json({ ok:false, error: 'Debes ser mayor de 18 años' });
 
@@ -94,10 +95,10 @@ app.post('/api/signup', async (req, res) => {
 
     const hash = await bcrypt.hash(password, 10);
     await query(`
-      INSERT INTO dbo.CuentaUsuario (id_usuario, [contraseña], fecha_nacimiento)
-      VALUES (@uid, @hash, @dob);
-    `, [
+      INSERT INTO dbo.CuentaUsuario (id_usuario, nombre, [contraseña], fecha_nacimiento)
+      VALUES (@uid,@nombre, @hash, @dob);`, [
       { name:'uid',  type: sql.VarChar(50),  value: uid },
+      {name:'nombre', type: sql.NVarChar(150), value: name },
       { name:'hash', type: sql.VarChar(255), value: hash },
       { name:'dob',  type: sql.DateTime,     value: new Date(dob) }
     ]);
