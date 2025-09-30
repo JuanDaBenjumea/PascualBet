@@ -104,8 +104,8 @@
 import { ref, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import * as Tone from 'tone';
-// Importa el saldo global y la función para actualizarlo
-import { balance, updateBalance } from '../../store/balance.js';
+// Importa el saldo global y las funciones de sincronización
+import { balance, syncBalance } from '../../store/balance.js';
 
 // --- State ---
 const gridDimension = ref(5); // 5 for 5x5, 3 for 3x3, etc.
@@ -114,9 +114,11 @@ const numMines = ref(3);
 const gameState = ref('betting'); // 'betting', 'playing', 'busted'
 const diamondsFound = ref(0);
 // Usar el saldo global reactivo
+const { uid } = balance;
 const credits = balance.credits;
 const router = useRouter();
 const lastWinnings = ref(null);
+const currentBetId = ref(null); // Para guardar el id_sesion de la apuesta
 
 // Ocultar el mensaje de ganancia si el usuario cambia la apuesta o parámetros
 watch([betAmount, gridDimension, numMines], () => {
@@ -183,17 +185,37 @@ watch(gridDimension, () => {
   grid.value = initializeGrid();
 });
 
-function startGame() {
+async function startGame() {
   if (betAmount.value <= 0) {
     alert("Please enter a bet amount greater than zero.");
     return;
   }
   if (betAmount.value > credits.value) {
     alert("No tienes suficientes créditos para esta apuesta.");
+    alert("No tienes saldo suficiente para esta apuesta.");
     return;
   }
 
-  updateBalance(-betAmount.value); // Descuenta del saldo global
+  // 1. Crear la apuesta en el backend
+  try {
+    const res = await fetch('http://localhost:4000/api/bet/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        uid: uid.value,
+        id_juego: 5, // ID para Minas
+        monto: betAmount.value
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error al crear la apuesta');
+    currentBetId.value = data.id_sesion;
+    await syncBalance(); // Sincronizar saldo después del descuento
+  } catch (error) {
+    alert(`Error: ${error.message}`);
+    return;
+  }
+
   gameState.value = 'playing';
   diamondsFound.value = 0;
   
@@ -208,7 +230,7 @@ function startGame() {
   }
 }
 
-function onTileClick(index) {
+async function onTileClick(index) {
   if (gameState.value !== 'playing' || grid.value[index].isRevealed) {
     return;
   }
@@ -221,6 +243,15 @@ function onTileClick(index) {
     mineSynth.triggerAttackRelease('C2', '16n');
     gameState.value = 'busted';
     revealAllMines();
+
+    // 2. Finalizar la apuesta como PERDIDA
+    await fetch('http://localhost:4000/api/bet/finalize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id_sesion: currentBetId.value, resultado: 'PERDIDO', multiplicador: 0 })
+    });
+    await syncBalance();
+
     // Sonido de perder
     setTimeout(() => loseSynth.triggerAttackRelease('C1', '8n'), 200);
   } else {
@@ -238,13 +269,22 @@ function revealAllMines() {
   });
 }
 
-function cashout() {
+async function cashout() {
   if (gameState.value !== 'playing' || diamondsFound.value === 0) return;
   const winnings = betAmount.value * currentMultiplier.value;
-  updateBalance(winnings); // Suma al saldo global
+  const multiplier = currentMultiplier.value;
+
+  // 2. Finalizar la apuesta como GANADA
+  await fetch('http://localhost:4000/api/bet/finalize', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id_sesion: currentBetId.value, resultado: 'GANADO', multiplicador: multiplier })
+  });
+  await syncBalance();
+
   // Sonido de cashout alegre
   cashoutSynth.triggerAttackRelease(['C6', 'E6', 'G6'], '8n');
-  lastWinnings.value = winnings;
+  lastWinnings.value = winnings - betAmount.value; // Mostrar ganancia neta
   gameState.value = 'betting';
   grid.value = initializeGrid();
   diamondsFound.value = 0;

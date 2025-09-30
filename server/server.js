@@ -300,15 +300,19 @@ app.post('/api/transaction/create', async (req, res) => {
  * Llama a usp_Apuesta_Crear
  */
 app.post('/api/bet/create', async (req, res) => {
-  const { uid, id_juego, monto } = req.body || {};
-  if (!uid || !id_juego || typeof monto !== 'number') return res.status(400).json({ ok:false, error: 'Datos requeridos' });
+  const { uid, id_juego, monto,resultado,multiplicador } = req.body || {};
+  if (!uid || !id_juego || typeof monto !== 'number' || !resultado || typeof multiplicador !== 'number') return res.status(400).json({ ok:false, error: 'Datos requeridos (uid, id_juego, monto, resultado, multiplicador)' });
   try {
-    await query(`EXEC dbo.usp_Apuesta_Crear @id_usuario=@uid, @id_juego=@id_juego, @monto=@monto`, [
+    const result = await query(`EXEC dbo.usp_Apuesta_Crear @id_usuario=@uid, @id_juego=@id_juego, @monto=@monto, @resultado=@resultado, @multiplicador=@multiplicador`, [
       { name:'uid', type: sql.VarChar(50), value: uid },
       { name:'id_juego', type: sql.Int, value: id_juego },
-      { name:'monto', type: sql.Decimal(12,2), value: monto }
+      { name:'monto', type: sql.Decimal(12,2), value: monto },
+      { name:'resultado', type: sql.VarChar(50), value: resultado },
+      { name:'multiplicador', type: sql.Decimal(5,2), value: multiplicador }
     ]);
-    res.json({ ok:true });
+    // Devolvemos el id_sesion creado para que el frontend pueda finalizar la apuesta.
+    const id_sesion = result.recordset[0].id_sesion;
+    res.json({ ok:true, id_sesion });
   } catch (e) {
     res.status(500).json({ ok:false, error: e.message });
   }
@@ -319,19 +323,6 @@ app.post('/api/bet/create', async (req, res) => {
  * body: { id_sesion, multiplicador }
  * Llama a dbo.usp_Apuesta_Finalizar
  */
-app.post('/api/bet/finalize', async (req, res) => {
-  const { id_sesion, multiplicador } = req.body || {};
-  if (!id_sesion) return res.status(400).json({ ok:false, error: 'id_sesion requerido' });
-  try {
-    await query(`EXEC dbo.usp_Apuesta_Finalizar @id_sesion=@id_sesion, @multiplicador=@multiplicador`, [
-      { name:'id_sesion', type: sql.Int, value: id_sesion },
-      { name:'multiplicador', type: sql.Decimal(5,2), value: multiplicador || 2.0 }
-    ]);
-    res.json({ ok:true });
-  } catch (e) {
-    res.status(500).json({ ok:false, error: e.message });
-  }
-});
 
 /**
  * POST /api/user/update-profile

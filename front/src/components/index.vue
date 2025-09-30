@@ -97,8 +97,8 @@ export default {
         this.depositError = "Ingresa un número de cuenta válido (mínimo 6 dígitos).";
         return;
       }
-      if (amount < 10000) {
-        this.depositError = "El monto mínimo de depósito es $10,000.";
+      if (amount < 10) {
+        this.depositError = "El monto mínimo es $10";
         return;
       }
       this.depositError = "";
@@ -174,8 +174,8 @@ export default {
         this.withdrawError = "Ingresa un número de cuenta válido (mínimo 6 dígitos).";
         return;
       }
-      if (amount < 20000) {
-        this.withdrawError = "El monto mínimo de retiro es $20,000.";
+      if (amount < 20) {
+        this.withdrawError = "El mínimo de retiro es $20.";
         return;
       }
       if (amount > this.credits) {
@@ -353,7 +353,7 @@ export default {
             </article>
 
             <article class="card game" data-game="rocket">
-              <h3 class="card-title">driving in my deer</h3>
+              <h3 class="card-title">rocket space</h3>
               <img src="/img/rocket.jpg" alt="" srcset="">
               <p class="card-text">Tocalo y se sube solo</p>
               <button class="btn play" @click="rocket">

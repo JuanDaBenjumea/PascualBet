@@ -246,7 +246,7 @@
 </template>
 
 <script>
-import { balance, updateBalance } from '../../store/balance.js';
+import { balance, syncBalance } from '../../store/balance.js';
 export default {
   name: 'Roulette',
   setup() {
@@ -276,7 +276,8 @@ export default {
         show: false,
         style: {}
       },
-      showBigResult: false
+      showBigResult: false,
+      currentBetId: null, // Para guardar el id_sesion de la apuesta
     }
   },
   computed: {
@@ -324,6 +325,7 @@ export default {
     }
   },
   mounted() {
+    syncBalance();
     this.initializeWheel();
     // Inicializar el audio de la ruleta
     this.rouletteAudio = new Audio('/Sounds/efecto de sonido de ruleta de juego (game roulette sound effect) 2020 - Luis Bernal.mp3');
@@ -389,8 +391,28 @@ export default {
       // La apuesta total se descontará en el método spin().
       // this.credits -= this.currentBetAmount; // <- Lógica anterior incorrecta eliminada
     },
-    
+
     clearAllBets() {
+      // Este método ahora solo limpia las apuestas del frontend,
+      // ya que el dinero no se ha descontado aún.
+      // Si se usa después de haber girado, el dinero ya se apostó.
+      if (this.spinning) return;
+
+      // Clear number bets
+      for (let number in this.bets.numbers) {
+        this.bets.numbers[number] = 0;
+      }
+      // Clear color bets
+      this.bets.colors = { red: 0, black: 0 };
+      // Clear parity bets
+      this.bets.parity = { even: 0, odd: 0 };
+      // Clear range bets
+      this.bets.ranges = { low: 0, high: 0 };
+    },
+    
+    // Este método se usaba antes, ahora la lógica es diferente.
+    // Lo mantengo por si lo necesitas para otra cosa, pero no se usa en el flujo de apuesta.
+    clearAllBetsAndRefund() {
       // Reset all bets and refund credits
       let totalRefund = this.totalBet;
       
@@ -409,13 +431,11 @@ export default {
       this.bets.ranges = { low: 0, high: 0 };
       
       // Refund credits
-      updateBalance(totalRefund);
+      syncBalance(); // Sincronizamos por si acaso, aunque no debería ser necesario.
     },
     
-    spin() {
+    async spin() {
       if (this.spinning || this.totalBet === 0) return;
-
-      updateBalance(-this.totalBet);
 
       // Reproducir sonido de ruleta justo al girar
       if (this.rouletteAudio) {
@@ -476,7 +496,7 @@ export default {
           // Animation complete
           this.spinning = false;
           this.lastResult = result;
-          this.calculateWinnings();
+          this.calculateWinnings(result);
           this.showResultHighlight(result);
           this.showBigResult = true;
           
@@ -522,41 +542,72 @@ export default {
       }, 5000);
     },
     
-    calculateWinnings() {
+    async calculateWinnings(result) {
       let totalWin = 0;
+      let highestMultiplier = 0;
       
       // Check number bets (35:1 payout)
-      if (this.bets.numbers[this.lastResult] > 0) {
-        totalWin += this.bets.numbers[this.lastResult] * 36; // Original bet + 35:1
+      if (this.bets.numbers[result] > 0) {
+        totalWin += this.bets.numbers[result] * 36;
+        highestMultiplier = Math.max(highestMultiplier, 36);
       }
       
       // Check color bets (1:1 payout)
-      if (this.lastResult !== 0) { // Zero doesn't count for color bets
-        if (this.redNumbers.includes(this.lastResult) && this.bets.colors.red > 0) {
-          totalWin += this.bets.colors.red * 2; // Original bet + 1:1
-        } else if (!this.redNumbers.includes(this.lastResult) && this.bets.colors.black > 0) {
-          totalWin += this.bets.colors.black * 2; // Original bet + 1:1
+      if (result !== 0) {
+        if (this.redNumbers.includes(result) && this.bets.colors.red > 0) {
+          totalWin += this.bets.colors.red * 2;
+          highestMultiplier = Math.max(highestMultiplier, 2);
+        } else if (!this.redNumbers.includes(result) && this.bets.colors.black > 0) {
+          totalWin += this.bets.colors.black * 2;
+          highestMultiplier = Math.max(highestMultiplier, 2);
         }
       }
       
       // Check parity bets (1:1 payout)
-      if (this.lastResult !== 0) { // Zero doesn't count for parity bets
-        if (this.lastResult % 2 === 0 && this.bets.parity.even > 0) {
-          totalWin += this.bets.parity.even * 2; // Original bet + 1:1
-        } else if (this.lastResult % 2 !== 0 && this.bets.parity.odd > 0) {
-          totalWin += this.bets.parity.odd * 2; // Original bet + 1:1
+      if (result !== 0) {
+        if (result % 2 === 0 && this.bets.parity.even > 0) {
+          totalWin += this.bets.parity.even * 2;
+          highestMultiplier = Math.max(highestMultiplier, 2);
+        } else if (result % 2 !== 0 && this.bets.parity.odd > 0) {
+          totalWin += this.bets.parity.odd * 2;
+          highestMultiplier = Math.max(highestMultiplier, 2);
         }
       }
       
       // Check range bets (1:1 payout)
-      if (this.lastResult >= 1 && this.lastResult <= 18 && this.bets.ranges.low > 0) {
-        totalWin += this.bets.ranges.low * 2; // Original bet + 1:1
-      } else if (this.lastResult >= 19 && this.lastResult <= 36 && this.bets.ranges.high > 0) {
-        totalWin += this.bets.ranges.high * 2; // Original bet + 1:1
+      if (result >= 1 && result <= 18 && this.bets.ranges.low > 0) {
+        totalWin += this.bets.ranges.low * 2;
+        highestMultiplier = Math.max(highestMultiplier, 2);
+      } else if (result >= 19 && result <= 36 && this.bets.ranges.high > 0) {
+        totalWin += this.bets.ranges.high * 2;
+        highestMultiplier = Math.max(highestMultiplier, 2);
       }
       
-      this.lastWin = totalWin;
-      updateBalance(totalWin);
+      this.lastWin = totalWin > 0 ? totalWin - this.totalBet : 0; // Ganancia neta
+
+      // Con el nuevo SP, creamos y finalizamos la apuesta en un solo paso.
+      const betResult = totalWin > 0 ? 'GANADO' : 'PERDIDO';
+
+      try {
+        const res = await fetch('http://localhost:4000/api/bet/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            uid: this.uid,
+            id_juego: 1,
+            monto: this.totalBet,
+            resultado: betResult,
+            multiplicador: highestMultiplier
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error al registrar la apuesta');
+        // No necesitamos guardar el id_sesion porque ya no hay un segundo paso.
+      } catch (error) {
+        alert(`Error: ${error.message}`);
+      }
+      
+      await syncBalance(); // Sincronizar saldo para reflejar la ganancia/pérdida
       
       // Clear all bets after the spin (but don't refund - money was already spent)
       setTimeout(() => {

@@ -100,8 +100,18 @@ CREATE TABLE Bonificacion (
 INSERT INTO CuentaUsuario (id_usuario,nombre, contraseña, rol, saldo_actual, fecha_nacimiento)
 VALUES ('admin','andres', 'admin123', 'ADMIN', 999999.99,'2004-10-04' );
 
+insert into Juego (nombre_juego,tipo_juego,estado) values ('Ruleta','mesa','ACTIVO')
+insert into Juego (nombre_juego,tipo_juego,estado) values ('tragamonedas','maquina','ACTIVO')
+insert into Juego (nombre_juego,tipo_juego,estado) values ('Blacjack','cartas','ACTIVO')
+insert into Juego (nombre_juego,tipo_juego,estado) values ('plinko','maquina','ACTIVO')
+insert into Juego (nombre_juego,tipo_juego,estado) values ('mines','maquina','ACTIVO')
+insert into Juego (nombre_juego,tipo_juego,estado) values ('rocket space','maquina','ACTIVO')
+
+
 select * from CuentaUsuario
 select * from Transaccion
+select * from Juego
+select * from Apuesta
 ---PROCEDIMIENTOS ALMACENADOS
 USE DB_PascualBet;
 GO
@@ -500,10 +510,12 @@ IF OBJECT_ID('dbo.usp_Apuesta_Crear','P') IS NOT NULL
   DROP PROCEDURE dbo.usp_Apuesta_Crear;
 GO
 
-CREATE PROCEDURE dbo.usp_Apuesta_Crear
+alter PROCEDURE dbo.usp_Apuesta_Crear
   @id_usuario  VARCHAR(50),
   @id_juego    INT,
-  @monto       DECIMAL(12,2)
+  @monto       DECIMAL(12,2),
+  @resultado       VARCHAR(50),     -- 'GANADO', 'PERDIDO'
+  @multiplicador   DECIMAL(5,2) = 2.0  -- Por defecto duplica la apuesta si gana
 AS
 BEGIN
   SET NOCOUNT ON;
@@ -511,6 +523,7 @@ BEGIN
   
   BEGIN TRY
     DECLARE @saldo_actual DECIMAL(12,2);
+    DECLARE @premio DECIMAL(12,2);
     
     -- Validar que el usuario existe
     IF NOT EXISTS (SELECT 1 FROM dbo.CuentaUsuario WHERE id_usuario = @id_usuario)
@@ -539,8 +552,8 @@ BEGIN
     WHERE id_usuario = @id_usuario;
     
     -- Insertar apuesta
-    INSERT INTO dbo.Apuesta (id_usuario, id_juego, fecha_inicio, monto)
-    VALUES (@id_usuario, @id_juego, GETDATE(), @monto);
+    INSERT INTO dbo.Apuesta (id_usuario, id_juego, fecha_inicio,fecha_fin,resultado, monto)
+    VALUES (@id_usuario, @id_juego, GETDATE(),GETDATE(),@resultado, @monto);
     
     COMMIT TRANSACTION;
     SELECT SCOPE_IDENTITY() AS id_sesion, 'Apuesta creada exitosamente' AS Mensaje;
