@@ -18,10 +18,30 @@ const getInitialBalance = () => {
   return 0;
 };
 
-// Creamos un estado reactivo para el saldo.
+// Creamos un estado reactivo para el saldo y el uid.
 const state = reactive({
   credits: getInitialBalance(),
+  uid: localStorage.getItem('pb:session') ? JSON.parse(localStorage.getItem('pb:session')).uid : ''
 });
+
+// Nueva función para sincronizar saldo desde la base de datos
+export const syncBalance = async () => {
+  const session = localStorage.getItem('pb:session');
+  if (!session) return;
+  const { uid } = JSON.parse(session);
+  try {
+    const r = await fetch(`http://localhost:4000/api/user/info/${uid}`);
+    const data = await r.json();
+    if (data.ok && data.info) {
+      state.credits = Number(data.info.saldo_actual) || 0;
+      // Actualiza también el saldo en localStorage
+      const newSession = { ...JSON.parse(session), saldo: state.credits };
+      localStorage.setItem('pb:session', JSON.stringify(newSession));
+    }
+  } catch (e) {
+    console.error("Error al sincronizar saldo:", e);
+  }
+};
 
 // Función para actualizar el saldo. Acepta montos positivos (ganancias) y negativos (pérdidas).
 export const updateBalance = (amount) => {
@@ -30,14 +50,6 @@ export const updateBalance = (amount) => {
   const session = JSON.parse(localStorage.getItem('pb:session') || '{}');
   session.saldo = state.credits;
   localStorage.setItem('pb:session', JSON.stringify(session));
-  try {
-    // Persistimos el cambio en localStorage para que no se pierda.
-    const session = JSON.parse(localStorage.getItem('pb:session') || '{}');
-    session.saldo = state.credits;
-    localStorage.setItem('pb:session', JSON.stringify(session));
-  } catch (e) {
-    console.error("Error al actualizar la sesión en localStorage:", e);
-  }
 };
 
 // Exportamos las referencias reactivas para que los componentes puedan usarlas.

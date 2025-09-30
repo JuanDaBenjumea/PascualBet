@@ -7,6 +7,9 @@ import Rocket from './games/rocket.vue';
 
 export default {
   setup() { return { ...balance }; },
+  mounted() {
+    syncBalance();
+  },
   data() {
     return {
       showLogoutModal: false,
@@ -175,7 +178,7 @@ export default {
           <button class="btn btn-primary" @click="openWithdrawModal">
             Retirar
           </button>
-          <p>username</p>
+          <p>{{ uid }}</p>
           <div class="avatar-menu">
             <button
               class="avatar"
