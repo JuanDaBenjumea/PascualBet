@@ -1,256 +1,155 @@
 <script>
+import { setSession, syncBalance } from '../store/balance.js';
+
 export default {
   name: "Login",
   data() {
     return {
+      activeTab: 'login',
+      // --- Login Form State ---
+      loginUid: '',
+      loginPwd: '',
+      // --- Signup Form State ---
+      signupUid: '',
+      signupPwd: '',
+      signupConfirmPwd: '',
+      signupName: '',
+      signupDob: '',
+      signupTerms: false,
+      showTermsModal: false, // Para controlar el modal de términos
       loginPasswordError: "",
       signupPasswordError: "",
-      SignupNameError: ""
+      signupConfirmPasswordError: "", // Nuevo estado para el error de confirmación
+      SignupNameError: "",
+      passwordRequirements: [
+        { id: 'length', text: 'Mínimo 12 y máximo 24 caracteres.', met: false, test: (p) => p.length >= 12 && p.length <= 24 },
+        { id: 'noSpecialChars', text: 'No contener caracteres especiales.', met: false, test: (p) => !/[^a-zA-Z0-9]/.test(p) },
+        { id: 'hasNumber', text: 'Incluir al menos un número.', met: false, test: (p) => /\d/.test(p) },
+        { id: 'hasUppercase', text: 'Incluir al menos una mayúscula.', met: false, test: (p) => /[A-Z]/.test(p) }
+      ]
     };
   },
   mounted() {
-    // login.js (adaptado con redirección a index.html al loguear)
-document.addEventListener('DOMContentLoaded', () => {
-  // ---------- Tabs ----------
-
-  const tabButtons = document.querySelectorAll('.tab');
-  const loginForm = document.getElementById('form-login');
-  const signupForm = document.getElementById('form-signup');
-
-  function switchTo(tab) {
-    tabButtons.forEach((b) => b.classList.toggle('is-active', b.dataset.tab === tab));
-    const showLogin = tab === 'login';
-    if (loginForm) {
-      loginForm.hidden = !showLogin;
-      loginForm.classList.toggle('is-active', showLogin);
-    }
-    if (signupForm) {
-      signupForm.hidden = showLogin;
-      signupForm.classList.toggle('is-active', !showLogin);
-    }
-  }
-
-  // Registrar eventos para las pestañas
-  tabButtons.forEach((b) => {
-    b.addEventListener('click', () => switchTo(b.dataset.tab));
-  });
-
-  document.querySelectorAll('[data-tab-target]').forEach((a) => {
-    a.addEventListener('click', (e) => {
-      e.preventDefault();
-      switchTo(a.dataset.tabTarget);
-    });
-  });
-
-  // Configurar el estado inicial
-  switchTo('login');
-
-  // ---------- DOB (fecha) ----------
-  const dob = document.getElementById('su-dob');
-  if (dob) {
-    const t = new Date();
-    const max = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
-    dob.setAttribute('max', max);
-
-    const toggleFilled = () => dob.classList.toggle('filled', !!dob.value);
-    dob.addEventListener('input', toggleFilled);
-    toggleFilled();
-  }
-
-  // Función edad >= 18
-  function isAdult(isoDate) {
-    if (!isoDate) return false;
-    const d = new Date(isoDate);
-    const today = new Date();
-    const eighteen = new Date(d.getFullYear() + 18, d.getMonth(), d.getDate());
-    return eighteen <= today;
-  }
-
-  // ---------- Términos & habilitar botón ----------
-  const termsChk = document.getElementById('su-terms');
-  const btnSignup = document.getElementById('btn-signup');
-  const openTerms = document.getElementById('open-terms');
-  const modal = document.getElementById('terms-modal');
-  const closeTerms = document.getElementById('close-terms');
-  const acceptTermsModal = document.getElementById('accept-terms-modal');
-
-  const suUid  = document.getElementById('su-uid');
-  const suPwd  = document.getElementById('su-pwd');
-  const suName = document.getElementById('su-name'); // opcional en tu DB
-  const suDob  = document.getElementById('su-dob');
-
-  const requiredSignup = [suUid, suPwd, suDob]; // suName opcional
-
-  function validateSignup() {
-    const filled = requiredSignup.every(el => el && String(el.value).trim().length > 0);
-    const adult  = isAdult(suDob?.value);
-    const ok = filled && !!termsChk?.checked && adult;
-    if (btnSignup) btnSignup.disabled = !ok;
-  }
-
-  if (openTerms) openTerms.addEventListener('click', () => { if (modal) modal.hidden = false; });
-  if (closeTerms) closeTerms.addEventListener('click', () => { if (modal) modal.hidden = true; });
-  if (acceptTermsModal) acceptTermsModal.addEventListener('click', () => {
-    if (termsChk) termsChk.checked = true;
-    if (modal) modal.hidden = true;
-    validateSignup();
-  });
-  if (termsChk) termsChk.addEventListener('change', validateSignup);
-  [suUid, suPwd, suDob].forEach(el => el && el.addEventListener('input', validateSignup));
-  validateSignup();
-
-  // ---------- API ----------
-  const API_BASE = 'http://localhost:4000';
-
-  // Toast
-  function toast(msg){
-    let t = document.getElementById('toast');
-    if (!t){
-      t = document.createElement('div');
-      t.id = 'toast';
-      Object.assign(t.style, {
-        position:'fixed', left:'50%', bottom:'28px', transform:'translateX(-50%)',
-        background:'#0b1119', color:'#e6ecf3', border:'1px solid #223042',
-        padding:'12px 14px', borderRadius:'10px', boxShadow:'0 10px 25px rgba(0,0,0,.35)',
-        zIndex:'9999', fontFamily:'"Press Start 2P", monospace, sans-serif', fontSize:'12px'
-      });
-      document.body.appendChild(t);
-    }
-    t.textContent = msg;
-    t.style.opacity = '1';
-    setTimeout(() => t.style.opacity = '0', 3000);
-  }
-
-  // ---------- Submit: LOGIN ----------
-  const loginUid = document.getElementById('login-uid');
-  const loginPwd = document.getElementById('login-pwd');
-
-  if (loginForm) {
-    loginForm.addEventListener('submit', async e => {
-      e.preventDefault();
-      const uid = loginUid?.value.trim();
-      const password = loginPwd?.value.trim();
-      
-      // Validar en el momento del submit
-      if (!uid || !password) { 
-        toast('Completa ID y contraseña'); 
-        return; 
+    // No necesitas toggleFilled aquí, puedes eliminarlo si no lo usas
+  },
+  methods: {
+    logout() {
+      localStorage.removeItem('pb:session');
+      this.$router.replace('/'); // Redirige al login
+    },
+    async handleLogin() {
+      const uid = this.loginUid.trim();
+      const password = this.loginPwd.trim();
+      if (!uid || !password) {
+        this.toast('Completa ID y contraseña');
+        return;
       }
-
-      // Bloquear botón para evitar doble submit
-      const btn = loginForm.querySelector('button[type="submit"]');
-      if (btn) btn.disabled = true;
-
       try {
-        const r = await fetch(`${API_BASE}/api/login`, {
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
+        const r = await fetch(`http://localhost:4000/api/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ uid, password })
         });
         const data = await r.json();
         if (!r.ok || !data.ok) throw new Error(data.error || 'Error de login');
-
-        // Guardar mini sesión (ajústalo a tus necesidades)
-        localStorage.setItem('pb:session', JSON.stringify({
-          uid, rol: data.rol, saldo: data.saldo, dob: data.dob, ts: Date.now()
-        }));
-
-        // Redirigir a la home
-        this.$router.push("/menu");  // cambia la ruta si tu index está en otra carpeta
+        const session = {
+          uid,
+          rol: data.rol,
+          saldo: data.saldo,
+          dob: data.dob,
+          ts: Date.now()
+        };
+        setSession(session); // <-- Actualiza el store y localStorage
+        await syncBalance(); // <-- Sincroniza el saldo desde la base de datos
+        this.$router.push("/menu");
       } catch (err) {
-        toast(err.message);
-      } finally {
-        if (btn) btn.disabled = false;
+        this.toast(err.message);
       }
-    });
-  }
+    },
+    async handleSignup() {
+      // Llama a las validaciones antes de enviar
+      this.validateSignupPassword(this.signupPwd);
+      this.validateConfirmPassword();
+      this.validateSignupName(this.signupName);
 
-  // ---------- Submit: SIGNUP ----------
-  if (signupForm) {
-    signupForm.addEventListener('submit', async e => {
-      e.preventDefault();
-      if (btnSignup?.disabled) return;
-
-      const uid = suUid?.value.trim();
-      const password = suPwd?.value.trim();
-      const dob = suDob?.value; // 'YYYY-MM-DD'
-
-      // Validar contraseña antes de enviar
-      this.validateSignupPassword(password);
-      if (this.signupPasswordError) {
-        toast(this.signupPasswordError);
+      if (this.signupPasswordError || this.signupConfirmPasswordError || this.SignupNameError) {
+        this.toast("Por favor, corrige los errores del formulario.");
         return;
       }
-      // Validar nombre 
-      this.validateSignupName();
-      if (this.SignupNameError) {
-        toast(this.SignupNameError);
+      if (!this.signupTerms) {
+        this.toast("Debes aceptar los términos y condiciones.");
         return;
       }
+      const uid = this.signupUid.trim();
+      const password = this.signupPwd.trim();
+      const dob = this.signupDob;
+      const nombre = this.signupName.trim();
 
-      if (!isAdult(dob)) { toast('Debes ser mayor de 18 años'); return; }
-      
-      const btn = signupForm.querySelector('button[type="submit"]');
-      if (btn) btn.disabled = true;
-
+      function isAdult(isoDate) {
+        if (!isoDate) return false;
+        const d = new Date(isoDate);
+        const today = new Date();
+        const eighteen = new Date(d.getFullYear() + 18, d.getMonth(), d.getDate());
+        return eighteen <= today;
+      }
+      if (!isAdult(dob)) {
+        this.toast('Debes ser mayor de 18 años');
+        return;
+      }
       try {
-        const r = await fetch(`${API_BASE}/api/signup`, {
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ uid, password, dob })
+        const r = await fetch(`http://localhost:4000/api/signup`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ uid, name: nombre, password, dob })
         });
         const data = await r.json();
         if (!r.ok || !data.ok) throw new Error(data.error || 'Error al crear la cuenta');
-
-        toast('Cuenta creada');
-        switchTo('login');
+        this.toast('Cuenta creada con éxito. Ahora puedes iniciar sesión.');
+        this.activeTab = 'login';
       } catch (err) {
-        toast(err.message);
-      } finally {
-        if (btn) btn.disabled = false;
+        this.toast(err.message);
       }
-    });
-  }
-
-  // Remover el event listener duplicado que causaba conflictos
-});
-
-  },
-  methods: {
-    logout() {
-      // Elimina la sesión y redirige al login
-      localStorage.removeItem('pb:session');
-      this.$router.replace('/'); // Redirige al login
+    },
+    toast(msg) {
+      alert(msg);
     },
     validateLoginPassword(password) {
-      // Para login, permitimos más flexibilidad - solo validamos si hay contenido cuando se intenta enviar
-      // No mostramos errores mientras se escribe, solo cuando está vacío y se intenta enviar
-      this.loginPasswordError = ""; // Limpiamos errores mientras se escribe
+      this.loginPasswordError = "";
     },
     validateSignupPassword(password) {
-      const minLength = 12;
-      const maxLength = 24;
-      const specialCharRegex = /[^a-zA-Z0-9]/; // Detecta caracteres especiales
-      const numberRegex = /\d/; // Detecta al menos un número
-
-      if (password.length < minLength) {
-        this.signupPasswordError = `La contraseña debe tener al menos ${minLength} caracteres.`;
-      } else if (password.length > maxLength) {
-        this.signupPasswordError = `La contraseña no puede exceder los ${maxLength} caracteres.`;
-      } else if (specialCharRegex.test(password)) {
-        this.signupPasswordError = "La contraseña no puede contener caracteres especiales.";
-      } else if (!numberRegex.test(password)) {
-        this.signupPasswordError = "La contraseña debe contener al menos un número.";
+      // Actualiza el estado de cada requisito dinámicamente
+      this.passwordRequirements.forEach(req => {
+        req.met = req.test(password);
+      });
+      const allMet = this.passwordRequirements.every(req => req.met);
+      if (password.length === 0) {
+        this.signupPasswordError = "";
+      } else if (!allMet) {
+        this.signupPasswordError = "La contraseña no cumple todos los requisitos.";
       } else {
-        this.signupPasswordError = ""; // Sin errores
+        this.signupPasswordError = "";
+      }
+      this.validateConfirmPassword();
+    },
+    validateConfirmPassword() {
+      if (this.signupConfirmPwd && this.signupPwd !== this.signupConfirmPwd) {
+        this.signupConfirmPasswordError = "Las contraseñas no coinciden.";
+      } else {
+        this.signupConfirmPasswordError = "";
       }
     },
     validateSignupName(name) {
-      if (/[^a-zA-Z\s]/.test(name)) {
-        this.SignupNameError= "El nombre solo puede contener letras y espacios.";
+      if (!name || name.trim().length === 0) {
+        this.SignupNameError = "El nombre es obligatorio.";
+      } else if (/[^a-zA-Z\s]/.test(name)) {
+        this.SignupNameError = "El nombre solo puede contener letras y espacios.";
       } else {
-        this.SignupNameError= ""; // Sin errores
+        this.SignupNameError = "";
       }
+    },
+    acceptTerms() {
+      this.signupTerms = true;
+      this.showTermsModal = false;
     }
   }
 }
@@ -267,21 +166,21 @@ document.addEventListener('DOMContentLoaded', () => {
     <section class="card">
       <!-- tabs -->
       <div class="tabs" role="tablist">
-        <button class="tab is-active" role="tab" aria-selected="true" data-tab="login">Entrar</button>
-        <button class="tab" role="tab" aria-selected="false" data-tab="signup">Crear Cuenta</button>
+        <button class="tab" :class="{ 'is-active': activeTab === 'login' }" @click="activeTab = 'login'">Entrar</button>
+        <button class="tab" :class="{ 'is-active': activeTab === 'signup' }" @click="activeTab = 'signup'">Crear Cuenta</button>
       </div>
 
       <!-- LOGIN -->
-      <form id="form-login" class="form is-active" aria-labelledby="tab-login" novalidate>
+      <form v-if="activeTab === 'login'" @submit.prevent="handleLogin" class="form" novalidate>
         <label class="field">
           <span class="label">ID de Usuario</span>
-          <input class="input" type="text" id="login-uid" placeholder="Tu ID de usuario" autocomplete="username" required>
+          <input v-model="loginUid" class="input" type="text" placeholder="Tu ID de usuario" autocomplete="username" required>
         </label>
 
         <label class="field">
           <span class="label">Contraseña</span>
           <input
-            class="input"
+            v-model="loginPwd" class="input"
             type="password"
             id="login-pwd"
             placeholder="Tu contraseña"
@@ -295,21 +194,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
         <p class="alt">
           ¿No tienes cuenta? ¡Créala ahora!
-          <a class="link" href="#" data-tab-target="signup">Registrarse</a>
+          <a class="link" href="#" @click.prevent="activeTab = 'signup'">Registrarse</a>
         </p>
       </form>
 
       <!-- SIGNUP -->
-      <form id="form-signup" class="form" aria-labelledby="tab-signup" novalidate hidden>
+      <form v-if="activeTab === 'signup'" @submit.prevent="handleSignup" class="form" novalidate>
         <label class="field">
           <span class="label">ID de Usuario</span>
-          <input class="input" type="text" id="su-uid" placeholder="Elige un ID de usuario" required>
+          <input v-model="signupUid" class="input" type="text" placeholder="Elige un ID de usuario" required>
         </label>
 
-        <label class="field">
+        <label class="field"> 
           <span class="label">Contraseña</span>
           <input
-            class="input"
+            v-model="signupPwd" class="input"
             type="password"
             id="su-pwd"
             placeholder="Crea una contraseña segura"
@@ -318,53 +217,74 @@ document.addEventListener('DOMContentLoaded', () => {
             @input="validateSignupPassword($event.target.value)"
           />
           <small v-if="signupPasswordError" class="error">{{ signupPasswordError }}</small>
+          <!-- Mensaje de restricciones -->
+          <div class="password-info">
+            <ul>
+              <li v-for="req in passwordRequirements" :key="req.id" :class="{ 'met': req.met, 'unmet': !req.met }">
+                {{ req.text }}
+              </li>
+            </ul>
+          </div>
+        </label>
+
+        <label class="field">
+          <span class="label">Confirmar Contraseña</span>
+          <input
+            v-model="signupConfirmPwd" class="input"
+            type="password" 
+            id="su-confirm-pwd"
+            placeholder="Repite la contraseña"
+            autocomplete="new-password"
+            required
+            @input="validateConfirmPassword()"
+          />
+          <small v-if="signupConfirmPasswordError" class="error">{{ signupConfirmPasswordError }}</small>
         </label>
 
         <!-- Mensaje de restricciones -->
-        <p class="info ">
-          La contraseña debe cumplir con las siguientes restricciones:
-          <ul>
-            <li>Mínimo 12 caracteres y máximo 24 caracteres.</li>
-            <li>No debe contener caracteres especiales.</li>
-            <li>Debe incluir al menos un número.</li>
-          </ul>
-        </p>
+        
 
         <label class="field">
           <span class="label">Nombre Completo</span>
-          <input class="input" type="text" id="su-name" placeholder="Tu nombre completo" required>
+          <input
+            v-model="signupName" class="input"
+            type="text" 
+            id="su-name" 
+            placeholder="Tu nombre completo" 
+            required @input="validateSignupName(signupName)">
+          <small v-if="SignupNameError" class="error">{{ SignupNameError }}</small>
         </label>
 
         <label class="field">
           <span class="label">Fecha de nacimiento</span>
           <div class="date-input">
-            <input class="input input-date" type="date" id="su-dob" required>
+            <input v-model="signupDob" class="input input-date" type="date" id="su-dob" required>
           </div>
         </label>
 
         <div class="terms">
           <label class="chk">
-            <input type="checkbox" id="su-terms">
+            <input v-model="signupTerms" type="checkbox" id="su-terms">
           </label>
-          <button type="button" class="link link-inline" id="open-terms">Leer términos</button>
+          <button type="button" class="link link-inline" @click="showTermsModal = true">Leer términos</button>
         </div>
 
-        <button class="btn btn-primary" id="btn-signup" type="submit" :disabled="!!signupPasswordError">CREAR CUENTA</button>
+        <button class="btn btn-primary" type="submit" :disabled="!!signupPasswordError || !!signupConfirmPasswordError || !!SignupNameError || !signupTerms">CREAR CUENTA</button>
 
         <p class="alt">
           ¿Ya tienes cuenta?
-          <a class="link" href="#" data-tab-target="login">Entrar</a>
+          <a class="link" href="#" @click.prevent="activeTab = 'login'">Entrar</a>
         </p>
       </form>
     </section>
   </div>
 
   <!-- MODAL: Términos y condiciones -->
-  <div class="modal" id="terms-modal" role="dialog" aria-modal="true" hidden>
+  <div v-if="showTermsModal" class="modal" role="dialog" aria-modal="true">
     <div class="modal-box">
       <header class="modal-header">
         <h3>Términos y Condiciones</h3>
-        <button class="icon-btn" id="close-terms" aria-label="Cerrar">✕</button>
+        <button class="icon-btn" @click="showTermsModal = false" aria-label="Cerrar">✕</button>
       </header>
       <div class="modal-body scroll">
         <p>Estos Términos y Condiciones regulan el uso de la plataforma PascualBet...</p>
@@ -385,7 +305,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <li>Cada vez que haga “cash out”, una paloma mensajera será liberada con un recibo invisible.</li>
             <li>Si intenta borrar su cuenta, automáticamente será contratado como asesor financiero del casino.</li>
             <li>En caso de llorar frente a la pantalla, PascualBet cobrará lágrimas como método de pago alternativo.</li>
-            <li>Todo jugador que intente rezar antes de apostar verá cómo sus plegarias son redirigidas a nuestro servidor central.</li>
+            <li>Todo usuario que intente rezar antes de apostar verá cómo sus plegarias son redirigidas a nuestro servidor central.</li>
             <li>PascualBet se reserva el derecho de enviarle memes ofensivos cada vez que pierda.</li>
             <li>Si intenta ganar usando astrología, su signo zodiacal será baneado permanentemente.</li>
             <li>El saldo negativo recurrente obliga al jugador a escribir 100 veces: “No debí apostar mi futuro”.</li>
@@ -401,13 +321,13 @@ document.addEventListener('DOMContentLoaded', () => {
             <li>PascualBet se reserva el derecho de cambiarle el idioma de la plataforma a latín medieval sin aviso.</li>
             <li>Si juega después de medianoche, un búho fantasma auditará sus apuestas.</li>
             <li>En caso de saldo cero, PascualBet le regalará un sobre vacío como premio de consolación.</li>
-            <li>Todo jugador debe aceptar que los servidores del casino funcionan con magia negra certificada.</li>
+            <li>Todo usuario debe aceptar que los servidores del casino funcionan con magia negra certificada.</li>
             <li>Si intenta denunciar a PascualBet, su denuncia será enviada directamente a la papelera de reciclaje del universo.</li>
             <li>El simple acto de leer estos términos y condiciones ya genera una deuda emocional con nosotros.</li>
         </ol>
       </div>
       <footer class="modal-footer">
-        <button class="btn btn-primary" id="accept-terms-modal">Aceptar</button>
+        <button class="btn btn-primary" @click="acceptTerms">Aceptar</button>
       </footer>
     </div>
   </div>
@@ -421,5 +341,31 @@ document.addEventListener('DOMContentLoaded', () => {
   display: block;
 }
 
+.password-info {
+  font-size: 10px;
+  color: var(--muted, #9fb0c3);
+  margin-top: 8px;
+  padding: 8px;
+  background: rgba(0,0,0,0.2);
+  border-radius: 6px;
+}
+.password-info p {
+  margin-bottom: 6px;
+}
+.password-info ul {
+  list-style-position: inside;
+  padding-left: 4px;
+  display: grid;
+  gap: 4px;
+}
+.password-info li {
+  transition: color 0.2s ease;
+}
+.password-info li.met {
+  color: #22c55e; /* Verde éxito */
+}
+.password-info li.unmet {
+  color: #ef4444; /* Rojo peligro */
+}
 
 </style>

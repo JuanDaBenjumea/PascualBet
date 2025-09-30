@@ -8,6 +8,8 @@ import Usuarios from '../components/admin/usuarios.vue';
 import Plinko from '../components/games/plinko.vue';
 import Mines from '../components/games/mines.vue';
 import Rocket from '../components/games/rocket.vue';
+import Transaciones from '../components/admin/transaciones.vue';
+import Juegos from '../components/admin/juegos.vue';
 
 const routes = [
   {
@@ -37,10 +39,12 @@ const routes = [
   { path: '/slot', component: SlotM },
   { path: '/rulete', component: Rulet },
   { path: '/BJ', component: Blackjack },
-  { path: '/admin/usuarios', component: Usuarios },
   { path: '/plinko', component: Plinko },
   { path: '/mines', component: Mines },
-  { path: '/rocket', component: Rocket }
+  { path: '/rocket', component: Rocket },
+  { path: '/admin/usuarios', component: Usuarios },
+  { path: '/admin/juegos', component: Juegos },
+  { path: '/admin/transaciones', component: Transaciones }
 ];
 
 const router = createRouter({

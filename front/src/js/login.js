@@ -47,10 +47,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const suUid  = document.getElementById('su-uid');
   const suPwd  = document.getElementById('su-pwd');
-  const suName = document.getElementById('su-name'); // opcional en tu DB
+  const suName = document.getElementById('su-name');
   const suDob  = document.getElementById('su-dob');
 
-  const requiredSignup = [suUid, suPwd, suDob]; // suName opcional
+  const requiredSignup = [suUid, suName, suPwd, suDob]; // suName ahora es requerido
 
   function validateSignup() {
     const filled = requiredSignup.every(el => el && String(el.value).trim().length > 0);
@@ -67,7 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
     validateSignup();
   });
   if (termsChk) termsChk.addEventListener('change', validateSignup);
-  [suUid, suPwd, suDob].forEach(el => el && el.addEventListener('input', validateSignup));
+  [suUid, suName, suPwd, suDob].forEach(el => el && el.addEventListener('input', validateSignup));
   validateSignup();
 
   // ---------- API ----------
@@ -139,6 +139,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const uid = suUid?.value.trim();
       const password = suPwd?.value.trim();
+      const name = suName?.value.trim(); 
       const dob = suDob?.value; // 'YYYY-MM-DD'
 
       if (!isAdult(dob)) { toast('Debes ser mayor de 18 años'); return; }
@@ -150,7 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const r = await fetch(`${API_BASE}/api/signup`, {
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ uid, password, dob })
+          body: JSON.stringify({ uid, name, password, dob })
         });
         const data = await r.json();
         if (!r.ok || !data.ok) throw new Error(data.error || 'Error al crear la cuenta');

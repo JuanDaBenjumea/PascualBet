@@ -1,8 +1,17 @@
 <template>
   <div class="plinko-game-container">
-    <button @click="goBack" class="btn-back">Volver al Menú</button>
-    <!-- Panel de Controles Izquierdo -->
+  <button @click="goBack" class="btn-back top-left" :disabled="isBettingLocked">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+        <path fill-rule="evenodd" d="M12 8a.5.5 0 0 1-.5.5H5.707l2.147 2.146a.5.5 0 0 1-.708.708l-3-3a.5.5 0 0 1 0-.708l3-3a.5.5 0 1 1 .708.708L5.707 7.5H11.5a.5.5 0 0 1 .5.5z"/>
+      </svg>
+      Volver al Menú
+    </button>
     <div class="controls-panel">
+      <div class="balance-bar left">
+        <span class="balance-icon">💰</span>
+        <span class="balance-label">Saldo:</span>
+        <span class="balance-amount">$ {{ balance.toFixed(2) }}</span>
+      </div>
       <!-- Selector de Modo -->
       <div class="control-group mode-selector">
         <button :class="{ active: gameMode === 'manual' }" @click="setGameMode('manual')" :disabled="isAutoBetting">Manual</button>
@@ -44,9 +53,14 @@
         class="action-button"
         :class="buttonClass"
         @click="handleAction"
-        :disabled="isButtonDisabled"
+        :disabled="isButtonDisabled || (isAutoBetting && gameMode === 'auto')"
       >
-        {{ buttonText }}
+        <template v-if="isAutoBetting && gameMode === 'auto'">
+          Auto-Bet en progreso...
+        </template>
+        <template v-else>
+          {{ buttonText }}
+        </template>
       </button>
 
       <div v-if="totalWinThisRound !== null" class="game-message" :class="totalWinThisRound > 0 ? 'win-message' : 'loss-message'">
@@ -59,12 +73,12 @@
       <svg :viewBox="`0 0 ${boardWidth} ${boardHeight}`" class="plinko-board">
         <!-- Pivotes (Pegs) -->
         <circle
-          v-for="(peg, index) in pegs"
-          :key="`peg-${index}`"
+          v-for="peg in pegs"
+          :key="peg.id"
           :cx="peg.x"
           :cy="peg.y"
           :r="pegRadius"
-          class="peg"
+          :class="['peg', { 'hit': hitPegs.has(peg.id) }]"
         />
 
         <!-- Cubos Multiplicadores -->
@@ -74,7 +88,7 @@
             :y="bucket.y"
             :width="bucketWidth"
             :height="bucketHeight"
-            :class="['bucket', `bucket-color-${bucket.color}`]"
+            :class="['bucket', `bucket-color-${bucket.color}`, { 'pressed': lastHitBucketIndex === index }]"
           />
           <text
             :x="bucket.x + bucketWidth / 2"
@@ -101,6 +115,8 @@
 <script>
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from "vue";
 import { useRouter } from 'vue-router';
+import { balance, updateBalance } from '../../store/balance.js';
+import * as Tone from 'tone';
 
 // --- Funciones de Lógica y Probabilidad (integradas desde plinko-logic.js) ---
 
@@ -219,7 +235,7 @@ function adjustMultipliersForER(probabilities, targetER, baseMultipliers = null)
 export default {
   name: "Plinko",
   setup() {
-    const router = useRouter();
+    const { uid } = balance;
 
     function goBack() {
       router.push('/menu');
@@ -230,12 +246,13 @@ export default {
     const filas_estacas = ref(12); // Parámetro de entrada: Número de filas de estacas
     const boardWidth = ref(500);
     const boardHeight = ref(550);
-    const pegRadius = 5;
-    const ballRadius = 8;
+    const pegRadius = 8;
+    const ballRadius = 10;
     const bucketHeight = 30;
     
     // --- Estado del Juego ---
     const gameMode = ref('manual'); // 'manual', 'auto'
+    const router = useRouter();
     const betAmount = ref(10);
     const riskLevel = ref("medium"); // 'low', 'medium', 'high'
     const ballsPerBet = ref(1);
@@ -245,6 +262,7 @@ export default {
     const isAutoBetting = ref(false);
     const betsPlayed = ref(0);
     const totalWinThisRound = ref(null);
+  // El saldo ahora viene del store centralizado
     
     const ball = reactive({
       id: 0,
@@ -255,6 +273,8 @@ export default {
       visible: false,
     });
 
+    const hitPegs = reactive(new Set());
+    const lastHitBucketIndex = ref(null);
     // --- Lógica de Probabilidad y Multiplicadores ---
     const probabilidad_desvio_izq = computed(() => {
       // El riesgo ajusta la probabilidad de desvío
@@ -267,6 +287,7 @@ export default {
     const num_casillas = computed(() => filas_estacas.value + 1);
 
     // --- Lógica de la Interfaz ---
+
     const isBettingLocked = computed(() => gameState.value === 'dropping' || isAutoBetting.value);
 
     const buttonText = computed(() => {
@@ -292,38 +313,133 @@ export default {
       }
     }
 
+    // Sonido de click para la salida de la bola
+    const clickSynth = new Tone.NoiseSynth({ volume: -26 }).toDestination();
+
+    // Clase para reproducir una nota con Tone.js
+    class Note {
+      constructor(note) {
+        this.synth = new Tone.PolySynth().toDestination();
+        this.synth.set({ volume: -6 });
+        this.note = note;
+      }
+      play() {
+        return this.synth.triggerAttackRelease(
+          this.note,
+          "32n",
+          Tone.context.currentTime
+        );
+      }
+    }
+    // Notas asociadas a cada bucket/pivote
+    const notesArr = [
+      "C#5", "C5", "B5", "A#5", "A5", "G#4", "G4", "F#4",
+      "F4", "F#4", "G4", "G#4", "A5", "A#5", "B5", "C5", "C#5"
+    ].map((note) => new Note(note));
+
+    // Sonido plano, corto y bajo para los buckets centrales
+    const flatSynth = new Tone.NoiseSynth({
+      volume: -28,
+      envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.01 }
+    }).toDestination();
+    // Filtro para hacerlo más "plano"
+    const flatFilter = new Tone.Filter(800, "lowpass").toDestination();
+    flatSynth.connect(flatFilter);
+
+    // Sonido audible para los buckets centrales si no suena nada
+    const fallbackSynth = new Tone.PolySynth().toDestination();
+
+    // Sonido fuerte y claro para los buckets centrales
+    const centralSynth = new Tone.PolySynth().toDestination();
+    centralSynth.set({ volume: -10 });
+
+    // Sonido especial para los extremos (0 y 16): acorde mayor brillante
+    const edgeSynth = new Tone.PolySynth().toDestination();
+    edgeSynth.set({ volume: -8 });
+
+    // Buckets centrales (planos): índices 5 a 10
+    const bucketSounds = [
+      // Extremo izquierdo
+      () => edgeSynth.triggerAttackRelease(["C5", "E5", "G5"], '8n'),
+      () => bellSynth.triggerAttackRelease('G4', '16n'),
+      () => marimbaSynth.triggerAttackRelease('A4', '16n'),
+      () => marimbaSynth.triggerAttackRelease('C5', '16n'),
+      () => marimbaSynth.triggerAttackRelease('E5', '16n'),
+      () => centralSynth.triggerAttackRelease('C5', '8n'),
+      () => centralSynth.triggerAttackRelease('C5', '8n'),
+      () => centralSynth.triggerAttackRelease('C5', '8n'),
+      () => centralSynth.triggerAttackRelease('C5', '8n'),
+      () => centralSynth.triggerAttackRelease('C5', '8n'),
+      () => centralSynth.triggerAttackRelease('C5', '8n'),
+      // ...resto igual...
+      () => marimbaSynth.triggerAttackRelease('E5', '16n'),
+      () => marimbaSynth.triggerAttackRelease('C5', '16n'),
+      () => marimbaSynth.triggerAttackRelease('A4', '16n'),
+      () => bellSynth.triggerAttackRelease('G4', '16n'),
+      // Extremo derecho
+      () => edgeSynth.triggerAttackRelease(["C5", "E5", "G5"], '8n'),
+    ];
+
+    // Descontar la apuesta al apostar (solo para manual y para cada ronda en auto)
     function handleAction() {
       if (isAutoBetting.value) {
         stopAutoBetting();
       } else if (gameMode.value === 'manual') {
-        startManualDrop();
+        if (balance.credits.value >= betAmount.value * ballsPerBet.value) {
+          startManualDrop();
+        }
       } else if (gameMode.value === 'auto') {
-        startAutoBetting();
+        startAutoBetting(); // La validación de saldo se hace en el loop
+      }
+    }
+
+    // En modo auto, descuenta la apuesta antes de cada ronda
+    async function autoBetLoop() {
+      if (!isAutoBetting.value) return;
+      if (numberOfBets.value > 0 && betsPlayed.value >= numberOfBets.value) {
+        stopAutoBetting();
+        return;
+      }
+      const totalCost = betAmount.value * ballsPerBet.value;
+      if (balance.credits.value >= totalCost) {
+        await playRound();
+        betsPlayed.value++;
+        setTimeout(autoBetLoop, 500);
+      } else {
+        alert("Saldo insuficiente para continuar el auto-bet.");
+        stopAutoBetting();
       }
     }
 
     // --- Geometría del Tablero (Computadas) ---
     const pegs = computed(() => {
       const pegArray = [];
-      const rowHeight = (boardHeight.value - bucketHeight - 60) / filas_estacas.value;
-      for (let row = 0; row < filas_estacas.value; row++) {
-        const numPegsInRow = row + 2;
-        const y = 50 + row * rowHeight;
-        const totalPegWidth = numPegsInRow * (pegRadius * 2);
-        const spacing = (boardWidth.value - totalPegWidth) / (numPegsInRow + 1);
+      const rows = filas_estacas.value;
+      const verticalSpacing = (boardHeight.value - bucketHeight - 80) / rows;
+      const horizontalSpacing = boardWidth.value / (rows + 2); // Espaciado horizontal basado en el número de filas
+
+      for (let row = 0; row < rows; row++) {
+        const numPegsInRow = row + 1;
+        const y = 60 + row * verticalSpacing;
+        const startX = (boardWidth.value - (numPegsInRow - 1) * horizontalSpacing) / 2;
         for (let col = 0; col < numPegsInRow; col++) {
-          const x = spacing + col * (spacing + pegRadius * 2) + pegRadius;
-          pegArray.push({ x, y });
+          const x = startX + col * horizontalSpacing;
+          pegArray.push({ x, y, id: `${row}-${col}` });
         }
       }
       return pegArray;
     });
 
+
     const bucketWidth = computed(() => boardWidth.value / num_casillas.value);
 
     const buckets = computed(() => {
       // Ajusta los multiplicadores para un ER del 95%
-      const baseMultipliers = { low: [10, 5, 2, 1.1, 0.5], high: [30, 8, 3, 1.5, 0.4] };
+      const baseMultipliers = { 
+        low:    [1.1, 1, 1.2, 1.5, 3],   // Riesgo bajo: premios consistentes y bajos.
+        medium: [0.5, 1.1, 2, 5, 15],  // Riesgo medio: equilibrio.
+        high:   [0.3, 0.5, 3, 10, 30]    // Riesgo alto: alta volatilidad.
+      };
       const adjustedMultipliers = adjustMultipliersForER(
         probabilidades.value, 
         0.95, // ER del 95%
@@ -346,6 +462,7 @@ export default {
       }));
     });
 
+
     // --- Lógica de Animación y Juego ---
     let animationFrameId = null;
 
@@ -360,20 +477,6 @@ export default {
       autoBetLoop();
     }
 
-    async function autoBetLoop() {
-      if (!isAutoBetting.value) return;
-      if (numberOfBets.value > 0 && betsPlayed.value >= numberOfBets.value) {
-        stopAutoBetting();
-        return;
-      }
-
-      await playRound();
-      betsPlayed.value++;
-      
-      // Pausa breve antes de la siguiente ronda automática
-      setTimeout(autoBetLoop, 500);
-    }
-
     function stopAutoBetting() {
       isAutoBetting.value = false;
     }
@@ -385,12 +488,27 @@ export default {
         return;
       }
 
+      if (balance.credits.value < totalCost) {
+        alert("Saldo insuficiente.");
+        return;
+      }
+
+      clickSynth.triggerAttackRelease('8n');
+
       gameState.value = 'dropping';
       totalWinThisRound.value = 0;
 
       for (let i = 0; i < ballsPerBet.value; i++) {
-        const win = await dropSingleBall(i);
-        totalWinThisRound.value += win;
+        const { win, multiplier } = await dropSingleBall(i);
+        const resultado = win > 0 ? 'GANADO' : 'PERDIDO';
+
+        await fetch('http://localhost:4000/api/bet/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ uid: uid.value, id_juego: 4, monto: betAmount.value, resultado, multiplicador: multiplier })
+        });
+        await syncBalance();
+
         // Pequeña pausa entre bolas si hay más de una
         if (ballsPerBet.value > 1 && i < ballsPerBet.value - 1) {
           await new Promise(resolve => setTimeout(resolve, 200));
@@ -398,6 +516,7 @@ export default {
       }
 
       gameState.value = 'betting';
+      totalWinThisRound.value = null; // Limpiar mensaje para la siguiente ronda
     }
 
     function animate() {
@@ -413,6 +532,18 @@ export default {
         const dx = ball.x - peg.x;
         const dy = ball.y - peg.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
+
+        // Lógica para la estela
+        if (distance < ballRadius + pegRadius && !hitPegs.has(peg.id)) {
+          hitPegs.add(peg.id);
+          setTimeout(() => {
+            hitPegs.delete(peg.id);
+          }, 300); // La estela dura 300ms
+          // Sonido de nota según el bucket más cercano
+          // Buscar el bucket más cercano en X
+          const bucketIdx = Math.round(peg.x / bucketWidth.value);
+          if (notesArr[bucketIdx]) notesArr[bucketIdx].play();
+        }
 
         if (distance < ballRadius + pegRadius) {
           // Colisión detectada, aplicar rebote
@@ -437,6 +568,7 @@ export default {
 
     function dropSingleBall(id) {
       return new Promise(resolve => {
+        hitPegs.clear(); // Limpiar estelas de la bola anterior
         ball.id = id;
         ball.x = boardWidth.value / 2 + (Math.random() - 0.5) * 10;
         ball.y = 20;
@@ -451,11 +583,20 @@ export default {
 
             const bucketIndex = Math.floor(ball.x / bucketWidth.value);
             const winningBucket = buckets.value[bucketIndex];
+
+            // Animar el cubo ganador
+            lastHitBucketIndex.value = bucketIndex;
+            setTimeout(() => {
+              // Solo limpiar si no ha sido presionado otro cubo mientras tanto
+              if (lastHitBucketIndex.value === bucketIndex) lastHitBucketIndex.value = null;
+            }, 500); // Duración de la animación
             
             if (winningBucket) {
-              resolve(betAmount.value * winningBucket.multiplier);
+              const winAmount = betAmount.value * winningBucket.multiplier;
+              totalWinThisRound.value += winAmount;
+              resolve({ win: winAmount, multiplier: winningBucket.multiplier });
             } else {
-              resolve(0); // Cayó fuera
+              resolve({ win: 0, multiplier: 0 }); // Cayó fuera
             }
           } else {
             requestAnimationFrame(checkEnd);
@@ -478,6 +619,7 @@ export default {
       if (gameAreaRef.value) {
         resizeObserver = new ResizeObserver(entries => {
           for (const entry of entries) {
+
             const { width, height } = entry.contentRect;
             boardWidth.value = width;
             boardHeight.value = height;
@@ -503,7 +645,6 @@ export default {
       gameState,
       totalWinThisRound,
       buttonText,
-      handleAction,
       boardWidth,
       boardHeight,
       pegs,
@@ -523,6 +664,10 @@ export default {
       isButtonDisabled,
       goBack,
       gameAreaRef,
+      hitPegs,
+      lastHitBucketIndex,
+  balance: computed(() => balance.credits.value),
+      handleAction,
     };
   },
 };
@@ -537,42 +682,90 @@ export default {
   height: 100vh;
   display: flex;
   gap: 2rem;
+  justify-content: center;
+  align-items: center;
   padding: 2rem;
-  background-color: #0f212e;
+  background: #1D1E22;
   color: #fff;
   box-sizing: border-box;
 }
 
+
 .btn-back {
   position: absolute;
-  top: 1rem;
-  left: 1rem;
-  padding: 0.5rem 1rem;
-  background-color: #3a4c5a;
-  color: white;
-  border: none;
-  border-radius: 4px;
+  top: 1.5rem;
+  left: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.2rem;
+  background: linear-gradient(145deg, #3a4c5a, #213743);
+  color: #e0e0e0;
+  border: 1px solid #4f6a7e;
+  border-radius: 8px;
   cursor: pointer;
   font-weight: bold;
-  z-index: 20; /* Asegura que esté por encima de otros elementos */
-  transition: background-color 0.2s;
+  font-size: 0.9rem;
+  z-index: 20;
+  transition: all 0.2s ease-in-out;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
 }
 .btn-back:hover {
-  background-color: #4f6a7e;
+  background: linear-gradient(145deg, #4f6a7e, #3a4c5a);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.4);
+  color: #fff;
+}
+
+.btn-back.top-left {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  z-index: 30;
+  background: #22313f;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 18px;
+  font-weight: bold;
+  font-size: 1rem;
+  box-shadow: 0 2px 8px #0002;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.2s, transform 0.1s;
+}
+.btn-back.top-left:hover {
+  background: #1abc9c;
+  color: #22313f;
+  transform: translateY(-2px) scale(1.04);
 }
 
 .controls-panel {
+  position: relative;
   display: flex;
-  margin-top: 2rem;
   flex-direction: column;
   gap: 1.5rem;
-  background-color: #213743;
-  padding: 1.5rem;
-  border-radius: 8px;
-  width: 250px;
+  background: linear-gradient(180deg, #1f2c39, #0f1a24); /* Degradado sutil */
+  padding: 2rem;
+  border-radius: 16px; /* Bordes más redondeados */
+  width: 280px;
   flex-shrink: 0; /* Evita que el panel se encoja */
   min-height: 450px; /* Altura mínima para el modo manual */
   transition: min-height 0.3s ease; /* Transición suave */
+  border: 1px solid #3a4c5a;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4); /* Sombra para profundidad */
+  font-family: 'Poppins', sans-serif; /* Fuente moderna */
+}
+
+.balance-bar.left {
+  justify-content: flex-start;
+  margin: 0 0 18px 0;
+  padding: 10px 18px;
+  font-size: 1.1rem;
+  border-radius: 10px;
+  background: linear-gradient(90deg, #232526 0%, #414345 100%);
+  box-shadow: 0 2px 8px #0002;
 }
 
 .mode-selector {
@@ -587,6 +780,7 @@ export default {
   border: none;
   background-color: transparent;
   color: #b0c4de;
+  font-weight: 600;
   cursor: pointer;
 }
 .mode-selector button.active {
@@ -603,17 +797,26 @@ export default {
 
 .control-group label {
   font-size: 0.9rem;
+  font-weight: 600; /* Títulos en negrita */
   color: #b0c4de;
 }
 
 .input-group input, select {
-  background-color: #0f212e;
-  border: 1px solid #3a4c5a;
+  background-color: #0a1016;
+  border: 1px solid #00d4ff; /* Borde cian */
   color: #fff;
   padding: 0.75rem;
-  border-radius: 4px;
+  border-radius: 8px; /* Bordes más redondeados */
   width: 100%;
   box-sizing: border-box;
+  font-family: 'Poppins', sans-serif;
+  transition: all 0.2s ease;
+}
+
+.input-group input:focus, select:focus {
+  outline: none;
+  box-shadow: 0 0 10px rgba(0, 212, 255, 0.5); /* Resplandor al enfocar */
+  border-color: #33eaff;
 }
 
 .action-button {
@@ -624,20 +827,25 @@ export default {
   font-size: 1.1rem;
   font-weight: bold;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
 }
 
 .bet-button {
   background-color: #17a047;
   color: #fff;
+  box-shadow: 0 0 15px rgba(23, 160, 71, 0.4);
 }
 .bet-button:hover:not(:disabled) {
   background-color: #1db954;
+  transform: translateY(-2px);
+  box-shadow: 0 0 25px rgba(29, 185, 84, 0.7); /* Efecto glow */
 }
 
 .stop-button {
   background-color: #ef4444;
   color: #fff;
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
 }
 .stop-button:hover:not(:disabled) {
   background-color: #dc2626;
@@ -668,8 +876,9 @@ button:disabled {
 .game-area {
   flex-grow: 1; /* Ocupa el espacio restante */
   height: 100%;
-  background-color: #0f212e;
+  background-color: #1A1A21; /* Color solicitado */
   border-radius: 8px;
+
   border: 1px solid #213743;
   display: flex;
   align-items: center;
@@ -681,25 +890,56 @@ button:disabled {
   height: 100%;
 }
 
+
 .peg {
-  fill: #7289ab;
+  fill: #fff; /* Adjust peg color */
+  stroke: #3a4c5a; /* Add a dark stroke for definition */
+  stroke-width: 0.2;
+  transition: fill 0.3s ease, transform 0.1s ease, filter 0.1s ease; /* Add transition for hover effect */
+}
+.peg.hit {
+  fill: #ffffff;
+  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 1)); /* Brillo más intenso */
+  transform: scale(1.01); /* Movimiento reducido al 1% */
+  transition: fill 0.05s ease, filter 0.05s ease, transform 0.05s ease;
 }
 
+
 .ball {
-  fill: #f0b90b;
+  fill: #ff4d4d; /* Adjust ball color */
   stroke: #fff;
-  stroke-width: 1;
+  stroke-width: 0.2;
+  /* Add a subtle glow effect */
+  filter: drop-shadow(0 0 5px rgba(255, 77, 77, 0.7));
 }
+
 
 .bucket {
   stroke: #213743;
   stroke-width: 1;
+  transform-origin: bottom center; /* Asegura que la animación se vea correcta */
 }
 
-.bucket-color-yellow { fill: #f0b90b; }
-.bucket-color-blue { fill: #4a90e2; }
-.bucket-color-green { fill: #17a047; }
-.bucket-color-red { fill: #ff4d4d; }
+.bucket.pressed {
+  animation: press-bucket 0.5s ease-out;
+}
+
+@keyframes press-bucket {
+  0%, 100% {
+    transform: scaleY(1);
+    filter: brightness(1);
+  }
+  50% {
+    transform: scaleY(0.75); /* Aumenté la profundidad de la presión */
+    filter: brightness(1.6); /* Aumenté el brillo */
+  }
+}
+
+
+.bucket-color-yellow { fill: #bfa600; } /* amarillo oscuro */
+.bucket-color-blue { fill: #225a8c; }   /* azul oscuro */
+.bucket-color-green { fill: #11682d; }  /* verde oscuro */
+.bucket-color-red { fill: #a02a2a; }    /* rojo oscuro */
 
 .bucket-text {
   fill: #fff;
@@ -708,4 +948,13 @@ button:disabled {
   text-anchor: middle;
   pointer-events: none;
 }
+
+/* Hover effect for pegs */
+.peg:hover {
+  fill: #f0b90b; /* Change color on hover */
+  cursor: pointer; /* Change cursor to indicate interactivity */
+}
+
+
+
 </style>
