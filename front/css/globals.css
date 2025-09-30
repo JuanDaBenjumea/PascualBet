@@ -371,7 +371,7 @@ height: auto;}
   background: rgba(2,6,12,.55);
 }
 .modal-content{
-  width:min(520px, calc(100% - 24px));
+  width:min(600px, calc(100% - 24px));
   background: var(--bg-soft); color:var(--text);
   border:1px solid var(--border);
   border-radius: 16px; box-shadow: var(--shadow);
@@ -398,6 +398,7 @@ height: auto;}
   border-top:1px solid var(--border);
   padding: 18px 0; margin-top: 24px;
   background: linear-gradient(180deg, transparent, rgba(2,6,12,.25));
+  background-color: #1a1a2e;
 }
 .site-footer small{ color:var(--muted); }
 

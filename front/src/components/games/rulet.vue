@@ -7,13 +7,18 @@
 
     <!-- Header with theme styling -->
     <header class="game-header">
-      <div class="container">
+      <div class="container" style="
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+">
         <div class="brand">
           <h1 class="game-title">🎰 Ruleta PascualBet</h1>
         </div>
         <div class="user-actions">
           <div class="balance">
-            Balance: <strong>${{ credits }}</strong>
+            Balance: <strong>${{ credits.toFixed(2) }}</strong>
           </div>
           <div class="balance">
             Apuesta: <strong style="color: var(--danger)">${{ totalBet }}</strong>
@@ -117,7 +122,11 @@
               >
                 {{ spinning ? 'GIRANDO...' : 'GIRAR RULETA' }}
               </button>
-              <button class="btn back-btn" @click="goBack">
+              <button 
+                class="btn back-btn" 
+                @click="goBack" 
+                :disabled="spinning || totalBet > 0"
+              >
                 VOLVER AL MENÚ
               </button>
             </div>
@@ -154,108 +163,51 @@
           <div class="card betting-table">
             <h2 class="h2">MESA DE APUESTAS</h2>
             
-            <!-- Number Grid -->
-            <div class="numbers-grid">
-              <div 
-                v-for="number in numbers.slice(1)" 
-                :key="number"
-                @click="placeBet('number', number)"
-                class="number-cell"
-                :class="[
-                  getNumberColorClass(number),
-                  { 'winning-number': lastResult === number },
-                  { 'has-bet': bets.numbers[number] > 0 }
-                ]"
-              >
-                <span class="number-value">{{ number }}</span>
-                <div v-if="bets.numbers[number] > 0" class="bet-chip">
-                  ${{ bets.numbers[number] }}
+            <div class="table-layout">
+              <!-- Zero -->
+              <div class="zero-container">
+                <div 
+                  @click="placeBet('number', 0)"
+                  class="number-cell zero-cell green"
+                  :class="{ 'winning-number': lastResult === 0, 'has-bet': bets.numbers[0] > 0 }"
+                >
+                  <span class="number-value">0</span>
+                  <div v-if="bets.numbers[0] > 0" class="bet-chip">
+                    ${{ bets.numbers[0] }}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <!-- Zero -->
-            <div class="zero-section">
-              <div 
-                @click="placeBet('number', 0)"
-                class="number-cell zero-cell green"
-                :class="{ 'winning-number': lastResult === 0, 'has-bet': bets.numbers[0] > 0 }"
-              >
-                <span class="number-value">0</span>
-                <div v-if="bets.numbers[0] > 0" class="bet-chip">
-                  ${{ bets.numbers[0] }}
+              <!-- Main Grid -->
+              <div class="main-grid">
+                <!-- Number Grid -->
+                <div class="numbers-grid">
+                  <div 
+                    v-for="number in numbers.slice(1)" 
+                    :key="number"
+                    @click="placeBet('number', number)"
+                    class="number-cell"
+                    :class="[
+                      getNumberColorClass(number),
+                      { 'winning-number': lastResult === number },
+                      { 'has-bet': bets.numbers[number] > 0 }
+                    ]"
+                  >
+                    <span class="number-value">{{ number }}</span>
+                    <div v-if="bets.numbers[number] > 0" class="bet-chip">
+                      ${{ bets.numbers[number] }}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
 
-            <!-- Outside Bets -->
-            <div class="outside-bets">
-              <div 
-                @click="placeBet('color', 'red')"
-                class="bet-cell oval-bet red-bet"
-                :class="{ 'has-bet': bets.colors.red > 0 }"
-              >
-                <span>ROJO</span>
-                <div v-if="bets.colors.red > 0" class="bet-chip">
-                  ${{ bets.colors.red }}
-                </div>
-              </div>
-              
-              <div 
-                @click="placeBet('color', 'black')"
-                class="bet-cell oval-bet black-bet"
-                :class="{ 'has-bet': bets.colors.black > 0 }"
-              >
-                <span>NEGRO</span>
-                <div v-if="bets.colors.black > 0" class="bet-chip">
-                  ${{ bets.colors.black }}
-                </div>
-              </div>
-              
-              <div 
-                @click="placeBet('parity', 'even')"
-                class="bet-cell oval-bet parity-bet"
-                :class="{ 'has-bet': bets.parity.even > 0 }"
-              >
-                <span>PAR</span>
-                <div v-if="bets.parity.even > 0" class="bet-chip">
-                  ${{ bets.parity.even }}
-                </div>
-              </div>
-              
-              <div 
-                @click="placeBet('parity', 'odd')"
-                class="bet-cell oval-bet parity-bet"
-                :class="{ 'has-bet': bets.parity.odd > 0 }"
-              >
-                <span>IMPAR</span>
-                <div v-if="bets.parity.odd > 0" class="bet-chip">
-                  ${{ bets.parity.odd }}
-                </div>
-              </div>
-            </div>
-
-            <!-- Range Bets -->
-            <div class="range-bets">
-              <div 
-                @click="placeBet('range', 'low')"
-                class="bet-cell oval-bet range-bet"
-                :class="{ 'has-bet': bets.ranges.low > 0 }"
-              >
-                <span>1-18</span>
-                <div v-if="bets.ranges.low > 0" class="bet-chip">
-                  ${{ bets.ranges.low }}
-                </div>
-              </div>
-              
-              <div 
-                @click="placeBet('range', 'high')"
-                class="bet-cell oval-bet range-bet"
-                :class="{ 'has-bet': bets.ranges.high > 0 }"
-              >
-                <span>19-36</span>
-                <div v-if="bets.ranges.high > 0" class="bet-chip">
-                  ${{ bets.ranges.high }}
+                <!-- Outside Bets -->
+                <div class="outside-bets">
+                  <div @click="placeBet('range', 'low')" class="bet-cell range-bet" :class="{ 'has-bet': bets.ranges.low > 0 }"><span>1-18</span><div v-if="bets.ranges.low > 0" class="bet-chip">${{ bets.ranges.low }}</div></div>
+                  <div @click="placeBet('parity', 'even')" class="bet-cell parity-bet" :class="{ 'has-bet': bets.parity.even > 0 }"><span>PAR</span><div v-if="bets.parity.even > 0" class="bet-chip">${{ bets.parity.even }}</div></div>
+                  <div @click="placeBet('color', 'red')" class="bet-cell red-bet" :class="{ 'has-bet': bets.colors.red > 0 }"><span>ROJO</span><div v-if="bets.colors.red > 0" class="bet-chip">${{ bets.colors.red }}</div></div>
+                  <div @click="placeBet('color', 'black')" class="bet-cell black-bet" :class="{ 'has-bet': bets.colors.black > 0 }"><span>NEGRO</span><div v-if="bets.colors.black > 0" class="bet-chip">${{ bets.colors.black }}</div></div>
+                  <div @click="placeBet('parity', 'odd')" class="bet-cell parity-bet" :class="{ 'has-bet': bets.parity.odd > 0 }"><span>IMPAR</span><div v-if="bets.parity.odd > 0" class="bet-chip">${{ bets.parity.odd }}</div></div>
+                  <div @click="placeBet('range', 'high')" class="bet-cell range-bet" :class="{ 'has-bet': bets.ranges.high > 0 }"><span>19-36</span><div v-if="bets.ranges.high > 0" class="bet-chip">${{ bets.ranges.high }}</div></div>
                 </div>
               </div>
             </div>
@@ -294,11 +246,14 @@
 </template>
 
 <script>
+import { balance, updateBalance } from '../../store/balance.js';
 export default {
   name: 'Roulette',
+  setup() {
+    return { ...balance };
+  },
   data() {
     return {
-      credits: 1000,
       spinning: false,
       lastResult: null,
       lastWin: 0,
@@ -370,6 +325,9 @@ export default {
   },
   mounted() {
     this.initializeWheel();
+    // Inicializar el audio de la ruleta
+    this.rouletteAudio = new Audio('/Sounds/efecto de sonido de ruleta de juego (game roulette sound effect) 2020 - Luis Bernal.mp3');
+    this.rouletteAudio.preload = 'auto';
     // Esperar a que el canvas esté renderizado antes de dibujar
     this.$nextTick(() => {
       setTimeout(() => {
@@ -426,7 +384,10 @@ export default {
         this.bets.ranges[value] += this.currentBetAmount;
       }
       
-      this.credits -= this.currentBetAmount;
+      // La lógica correcta es descontar el total de la apuesta al girar,
+      // no en cada ficha que se pone. Por eso, aquí no modificamos el saldo.
+      // La apuesta total se descontará en el método spin().
+      // this.credits -= this.currentBetAmount; // <- Lógica anterior incorrecta eliminada
     },
     
     clearAllBets() {
@@ -448,23 +409,31 @@ export default {
       this.bets.ranges = { low: 0, high: 0 };
       
       // Refund credits
-      this.credits += totalRefund;
+      updateBalance(totalRefund);
     },
     
     spin() {
       if (this.spinning || this.totalBet === 0) return;
-      
+
+      updateBalance(-this.totalBet);
+
+      // Reproducir sonido de ruleta justo al girar
+      if (this.rouletteAudio) {
+        this.rouletteAudio.currentTime = 0;
+        this.rouletteAudio.play().catch(() => {});
+      }
+
       this.spinning = true;
       this.showBigResult = false;
       this.resultHighlight.show = false;
-      
+
       // Reset previous results visually
       this.lastResult = null;
       this.lastWin = 0;
-      
+
       // Generate random result
       const result = Math.floor(Math.random() * 37); // 0-36
-      
+
       this.animateWheelAndBall(result);
     },
     
@@ -473,22 +442,22 @@ export default {
       if (!canvas) return;
       
       // Normalizamos AMBOS ángulos para que cada animación empiece desde un estado limpio.
-      // Esto evita la acumulación de valores muy grandes que rompían la animación.
-      const initialWheelAngle = this.wheelAngle % 360;
-      const initialBallAngle = this.ballAngle % 360; 
+  // Esto evita la acumulación de valores muy grandes que rompían la animación.
+  const initialWheelAngle = this.wheelAngle % 360;
+  const initialBallAngle = this.ballAngle % 360; 
 
-      // Calculate target angles
-      const finalWheelAngle = initialWheelAngle + 1080 + Math.random() * 720; // 3-5 giros para la ruleta
-      const resultIndex = this.wheelNumbers.indexOf(result); // Encuentra el índice del número ganador
-      const anglePerSegment = 360 / 37;
-      // El ángulo del segmento ganador, ajustado para que el puntero (en la parte superior, 270 grados) quede en el centro del segmento.
-      const targetSegmentAngle = resultIndex * anglePerSegment + anglePerSegment / 2;
-      // El ángulo final de la bola es el ángulo final de la ruleta MÁS el ángulo del segmento ganador,
-      // MENOS varias rotaciones completas para que la bola gire en dirección opuesta.
-      const finalBallAngle = finalWheelAngle + targetSegmentAngle - (360 * 8); // 8 giros en dirección opuesta
+  // Calculate target angles
+  const finalWheelAngle = initialWheelAngle + 1080 + Math.random() * 720; // 3-5 giros para la ruleta
+  const resultIndex = this.wheelNumbers.indexOf(result); // Encuentra el índice del número ganador
+  const anglePerSegment = 360 / 37;
+  // El ángulo del segmento ganador, ajustado para que el puntero (en la parte superior, 270 grados) quede en el centro del segmento.
+  const targetSegmentAngle = resultIndex * anglePerSegment + anglePerSegment / 2;
+  // El ángulo final de la bola es el ángulo final de la ruleta MÁS el ángulo del segmento ganador,
+  // MENOS varias rotaciones completas para que la bola gire en dirección opuesta.
+  const finalBallAngle = finalWheelAngle + targetSegmentAngle - (360 * 24); // 24 giros en dirección opuesta
       
-      const startTime = performance.now();
-      const duration = 6000; // Animación más lenta: 6 segundos
+  const startTime = performance.now();
+  const duration = 8600; // Animación más larga: 8.6 segundos
       
       const animate = () => {
         const elapsed = performance.now() - startTime;
@@ -587,7 +556,7 @@ export default {
       }
       
       this.lastWin = totalWin;
-      this.credits += totalWin;
+      updateBalance(totalWin);
       
       // Clear all bets after the spin (but don't refund - money was already spent)
       setTimeout(() => {
@@ -1000,6 +969,11 @@ export default {
 .back-btn:hover {
   background: #2a2a2a;
 }
+.back-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: #1e1e1e; /* Mantener el color de fondo original */
+}
 
 .spin-btn:disabled {
   opacity: 0.6;
@@ -1084,19 +1058,37 @@ export default {
   color: var(--text);
 }
 
+/* New Table Layout */
+.table-layout {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 1.5rem;
+}
+
+.zero-container {
+  display: flex;
+  align-items: stretch; /* Make zero cell as tall as the number grid */
+}
+
+.main-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex-grow: 1;
+}
+
 /* Numbers Grid */
 .numbers-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px; /* Espaciado uniforme */
-  margin-bottom: 1.5rem;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 4px;
 }
 
 .number-cell {
   position: relative;
-  background: var(--primary);
+  /* background is now set by color class */
   color: white;
-  padding: 1rem;
+  padding: 0.6rem;
   text-align: center;
   border-radius: 6px; /* Bordes apenas redondeados */
   cursor: pointer;
@@ -1104,6 +1096,9 @@ export default {
   font-weight: bold;
   border: 1px solid transparent;
   box-shadow: inset 0 0 5px rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .number-cell:hover {
@@ -1135,7 +1130,7 @@ export default {
 }
 
 .number-value {
-  font-size: 1.2rem;
+  font-size: 1rem;
 }
 
 .bet-chip {
@@ -1144,46 +1139,59 @@ export default {
   right: -8px;
   background: #d4af37;
   color: var(--text);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(212, 175, 55, 0.9); /* Golden chip */
+  color: #121212;
   border-radius: 50%;
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 0.8rem;
   font-weight: bold;
   border: 2px solid white;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+  z-index: 2;
 }
 
-/* Zero Section */
-.zero-section {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 1.5rem;
+/* Hide text when chip is present */
+.bet-cell.has-bet span,
+.number-cell.has-bet .number-value {
+  opacity: 0;
 }
 
 .zero-cell {
-  width: 80px;
+  width: 45px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Outside Bets */
 .outside-bets {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-  margin-bottom: 1.5rem;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
 }
 
 .bet-cell {
   position: relative;
-  padding: 1rem;
+  padding: 0.6rem;
   text-align: center;
-  border-radius: 30px; /* Ovalado */
+  border-radius: 8px; /* Rectangular */
   cursor: pointer;
   transition: all 0.3s ease;
   font-weight: bold;
   color: white;
   border: 2px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
 }
 
 .bet-cell:hover {
@@ -1194,6 +1202,10 @@ export default {
 .bet-cell.has-bet {
   border-color: #d4af37;
   box-shadow: 0 0 10px #d4af37;
+}
+
+.bet-cell span {
+  font-size: 0.8rem;
 }
 
 .red-bet {
@@ -1209,14 +1221,6 @@ export default {
 .parity-bet {
   background: linear-gradient(145deg, #3b82f6, #2563eb);
   box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
-}
-
-/* Range Bets */
-.range-bets {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-  margin-bottom: 1.5rem;
 }
 
 .range-bet {

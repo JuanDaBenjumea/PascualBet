@@ -210,5 +210,171 @@ app.post('/api/balance/withdraw', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/user/update-balance
+ * body: { uid, monto }
+ * Llama a usp_CuentaUsuario_ActualizarSaldo
+ */
+app.post('/api/user/update-balance', async (req, res) => {
+  const { uid, monto } = req.body || {};
+  if (!uid || typeof monto !== 'number') return res.status(400).json({ ok:false, error: 'uid y monto requeridos' });
+  try {
+    await query(`EXEC dbo.usp_CuentaUsuario_ActualizarSaldo @id_usuario=@uid, @monto=@monto`, [
+      { name:'uid', type: sql.VarChar(50), value: uid },
+      { name:'monto', type: sql.Decimal(12,2), value: monto }
+    ]);
+    res.json({ ok:true });
+  } catch (e) {
+    res.status(500).json({ ok:false, error: e.message });
+  }
+});
+
+/**
+ * GET /api/user/info/:uid
+ * Llama a usp_CuentaUsuario_ObtenerInfo
+ */
+app.get('/api/user/info/:uid', async (req, res) => {
+  const { uid } = req.params;
+  if (!uid) return res.status(400).json({ ok:false, error: 'uid requerido' });
+  try {
+    const r = await query(`EXEC dbo.usp_CuentaUsuario_ObtenerInfo @id_usuario=@uid`, [
+      { name:'uid', type: sql.VarChar(50), value: uid }
+    ]);
+    res.json({ ok:true, info: r.recordset[0] });
+  } catch (e) {
+    res.status(500).json({ ok:false, error: e.message });
+  }
+});
+
+/**
+ * POST /api/user/change-id
+ * body: { oldUid, newUid }
+ * Llama a usp_CuentaUsuario_ModificarID
+ */
+app.post('/api/user/change-id', async (req, res) => {
+  const { oldUid, newUid } = req.body || {};
+  if (!oldUid || !newUid) return res.status(400).json({ ok:false, error: 'oldUid y newUid requeridos' });
+  try {
+    await query(`EXEC dbo.usp_CuentaUsuario_ModificarID @id_usuario_actual=@oldUid, @nuevo_id_usuario=@newUid`, [
+      { name:'oldUid', type: sql.VarChar(50), value: oldUid },
+      { name:'newUid', type: sql.VarChar(50), value: newUid }
+    ]);
+    res.json({ ok:true });
+  } catch (e) {
+    res.status(500).json({ ok:false, error: e.message });
+  }
+});
+
+/**
+ * POST /api/transaction/create
+ * body: { uid, tipo, monto, banco, cuenta_cliente }
+ * Llama a usp_Transaccion_Crear
+ */
+app.post('/api/transaction/create', async (req, res) => {
+  const { uid, tipo, monto, banco, cuenta_cliente } = req.body || {};
+  if (!uid || !tipo || typeof monto !== 'number') return res.status(400).json({ ok:false, error: 'Datos requeridos' });
+  try {
+    await query(`EXEC dbo.usp_Transaccion_Crear @id_usuario=@uid, @tipo_transaccion=@tipo, @monto=@monto, @banco=@banco, @cuenta_cliente=@cuenta_cliente`, [
+      { name:'uid', type: sql.VarChar(50), value: uid },
+      { name:'tipo', type: sql.VarChar(50), value: tipo },
+      { name:'monto', type: sql.Decimal(12,2), value: monto },
+      { name:'banco', type: sql.VarChar(50), value: banco || null },
+      { name:'cuenta_cliente', type: sql.VarChar(16), value: cuenta_cliente || null }
+    ]);
+    res.json({ ok:true });
+  } catch (e) {
+    res.status(500).json({ ok:false, error: e.message });
+  }
+});
+
+/**
+ * POST /api/transaction/approve
+ * body: { id_transaccion }
+ * Llama a usp_Transaccion_Aprobar
+ */
+app.post('/api/transaction/approve', async (req, res) => {
+  const { id_transaccion } = req.body || {};
+  if (!id_transaccion) return res.status(400).json({ ok:false, error: 'id_transaccion requerido' });
+  try {
+    await query(`EXEC dbo.usp_Transaccion_Aprobar @id_transaccion=@id_transaccion`, [
+      { name:'id_transaccion', type: sql.Int, value: id_transaccion }
+    ]);
+    res.json({ ok:true });
+  } catch (e) {
+    res.status(500).json({ ok:false, error: e.message });
+  }
+});
+
+/**
+ * POST /api/bet/create
+ * body: { uid, id_juego, monto }
+ * Llama a usp_Apuesta_Crear
+ */
+app.post('/api/bet/create', async (req, res) => {
+  const { uid, id_juego, monto } = req.body || {};
+  if (!uid || !id_juego || typeof monto !== 'number') return res.status(400).json({ ok:false, error: 'Datos requeridos' });
+  try {
+    await query(`EXEC dbo.usp_Apuesta_Crear @id_usuario=@uid, @id_juego=@id_juego, @monto=@monto`, [
+      { name:'uid', type: sql.VarChar(50), value: uid },
+      { name:'id_juego', type: sql.Int, value: id_juego },
+      { name:'monto', type: sql.Decimal(12,2), value: monto }
+    ]);
+    res.json({ ok:true });
+  } catch (e) {
+    res.status(500).json({ ok:false, error: e.message });
+  }
+});
+
+/**
+ * POST /api/bet/finalize
+ * body: { id_sesion, multiplicador }
+ * Llama a dbo.usp_Apuesta_Finalizar
+ */
+app.post('/api/bet/finalize', async (req, res) => {
+  const { id_sesion, multiplicador } = req.body || {};
+  if (!id_sesion) return res.status(400).json({ ok:false, error: 'id_sesion requerido' });
+  try {
+    await query(`EXEC dbo.usp_Apuesta_Finalizar @id_sesion=@id_sesion, @multiplicador=@multiplicador`, [
+      { name:'id_sesion', type: sql.Int, value: id_sesion },
+      { name:'multiplicador', type: sql.Decimal(5,2), value: multiplicador || 2.0 }
+    ]);
+    res.json({ ok:true });
+  } catch (e) {
+    res.status(500).json({ ok:false, error: e.message });
+  }
+});
+
+/**
+ * POST /api/user/update-profile
+ * body: { uid, nombre, nueva_contrasena, fecha_nacimiento }
+ * Llama a usp_CuentaUsuario_ActualizarPerfil
+ */
+app.post('/api/user/update-profile', async (req, res) => {
+  const { uid, nombre, nueva_contrasena, fecha_nacimiento } = req.body || {};
+  if (!uid) return res.status(400).json({ ok:false, error: 'uid requerido' });
+  try {
+    await query(`EXEC dbo.usp_CuentaUsuario_ActualizarPerfil 
+      @id_usuario=@uid, 
+      @nombre=@nombre, 
+      @nueva_contrasena=@nueva_contrasena, 
+      @fecha_nacimiento=@fecha_nacimiento`, [
+      { name:'uid', type: sql.VarChar(50), value: uid },
+      { name:'nombre', type: sql.VarChar(150), value: nombre || null },
+      { name:'nueva_contrasena', type: sql.VarChar(255), value: nueva_contrasena || null },
+      { name:'fecha_nacimiento', type: sql.DateTime, value: fecha_nacimiento || null }
+    ]);
+    res.json({ ok:true });
+  } catch (e) {
+    res.status(500).json({ ok:false, error: e.message });
+  }
+});
+
+/**
+ * POST /api/user/update-balance
+ * body: { uid, monto }
+ * EXEC dbo.usp_CuentaUsuario_ActualizarSaldo
+ */
+
+
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`API: http://localhost:${PORT}`));

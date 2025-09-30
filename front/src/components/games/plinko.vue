@@ -1,13 +1,17 @@
 <template>
   <div class="plinko-game-container">
-    <button @click="goBack" class="btn-back">
+  <button @click="goBack" class="btn-back top-left" :disabled="isBettingLocked">
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
         <path fill-rule="evenodd" d="M12 8a.5.5 0 0 1-.5.5H5.707l2.147 2.146a.5.5 0 0 1-.708.708l-3-3a.5.5 0 0 1 0-.708l3-3a.5.5 0 1 1 .708.708L5.707 7.5H11.5a.5.5 0 0 1 .5.5z"/>
       </svg>
       Volver al Menú
     </button>
-    <!-- Panel de Controles Izquierdo -->
     <div class="controls-panel">
+      <div class="balance-bar left">
+        <span class="balance-icon">💰</span>
+        <span class="balance-label">Saldo:</span>
+        <span class="balance-amount">$ {{ balance.toFixed(2) }}</span>
+      </div>
       <!-- Selector de Modo -->
       <div class="control-group mode-selector">
         <button :class="{ active: gameMode === 'manual' }" @click="setGameMode('manual')" :disabled="isAutoBetting">Manual</button>
@@ -49,9 +53,14 @@
         class="action-button"
         :class="buttonClass"
         @click="handleAction"
-        :disabled="isButtonDisabled"
+        :disabled="isButtonDisabled || (isAutoBetting && gameMode === 'auto')"
       >
-        {{ buttonText }}
+        <template v-if="isAutoBetting && gameMode === 'auto'">
+          Auto-Bet en progreso...
+        </template>
+        <template v-else>
+          {{ buttonText }}
+        </template>
       </button>
 
       <div v-if="totalWinThisRound !== null" class="game-message" :class="totalWinThisRound > 0 ? 'win-message' : 'loss-message'">
@@ -106,6 +115,8 @@
 <script>
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from "vue";
 import { useRouter } from 'vue-router';
+import { balance, updateBalance } from '../../store/balance.js';
+import * as Tone from 'tone';
 
 // --- Funciones de Lógica y Probabilidad (integradas desde plinko-logic.js) ---
 
@@ -250,6 +261,7 @@ export default {
     const isAutoBetting = ref(false);
     const betsPlayed = ref(0);
     const totalWinThisRound = ref(null);
+  // El saldo ahora viene del store centralizado
     
     const ball = reactive({
       id: 0,
@@ -300,15 +312,111 @@ export default {
       }
     }
 
+    // Sonido de click para la salida de la bola
+    const clickSynth = new Tone.NoiseSynth({ volume: -26 }).toDestination();
+
+    // Clase para reproducir una nota con Tone.js
+    class Note {
+      constructor(note) {
+        this.synth = new Tone.PolySynth().toDestination();
+        this.synth.set({ volume: -6 });
+        this.note = note;
+      }
+      play() {
+        return this.synth.triggerAttackRelease(
+          this.note,
+          "32n",
+          Tone.context.currentTime
+        );
+      }
+    }
+    // Notas asociadas a cada bucket/pivote
+    const notesArr = [
+      "C#5", "C5", "B5", "A#5", "A5", "G#4", "G4", "F#4",
+      "F4", "F#4", "G4", "G#4", "A5", "A#5", "B5", "C5", "C#5"
+    ].map((note) => new Note(note));
+
+    // Sonido plano, corto y bajo para los buckets centrales
+    const flatSynth = new Tone.NoiseSynth({
+      volume: -28,
+      envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.01 }
+    }).toDestination();
+    // Filtro para hacerlo más "plano"
+    const flatFilter = new Tone.Filter(800, "lowpass").toDestination();
+    flatSynth.connect(flatFilter);
+
+    // Sonido audible para los buckets centrales si no suena nada
+    const fallbackSynth = new Tone.PolySynth().toDestination();
+
+    // Sonido fuerte y claro para los buckets centrales
+    const centralSynth = new Tone.PolySynth().toDestination();
+    centralSynth.set({ volume: -10 });
+
+    // Sonido especial para los extremos (0 y 16): acorde mayor brillante
+    const edgeSynth = new Tone.PolySynth().toDestination();
+    edgeSynth.set({ volume: -8 });
+
+    // Buckets centrales (planos): índices 5 a 10
+    const bucketSounds = [
+      // Extremo izquierdo
+      () => edgeSynth.triggerAttackRelease(["C5", "E5", "G5"], '8n'),
+      () => bellSynth.triggerAttackRelease('G4', '16n'),
+      () => marimbaSynth.triggerAttackRelease('A4', '16n'),
+      () => marimbaSynth.triggerAttackRelease('C5', '16n'),
+      () => marimbaSynth.triggerAttackRelease('E5', '16n'),
+      () => centralSynth.triggerAttackRelease('C5', '8n'),
+      () => centralSynth.triggerAttackRelease('C5', '8n'),
+      () => centralSynth.triggerAttackRelease('C5', '8n'),
+      () => centralSynth.triggerAttackRelease('C5', '8n'),
+      () => centralSynth.triggerAttackRelease('C5', '8n'),
+      () => centralSynth.triggerAttackRelease('C5', '8n'),
+      // ...resto igual...
+      () => marimbaSynth.triggerAttackRelease('E5', '16n'),
+      () => marimbaSynth.triggerAttackRelease('C5', '16n'),
+      () => marimbaSynth.triggerAttackRelease('A4', '16n'),
+      () => bellSynth.triggerAttackRelease('G4', '16n'),
+      // Extremo derecho
+      () => edgeSynth.triggerAttackRelease(["C5", "E5", "G5"], '8n'),
+    ];
+
+    // Descontar la apuesta al apostar (solo para manual y para cada ronda en auto)
     function handleAction() {
       if (isAutoBetting.value) {
         stopAutoBetting();
       } else if (gameMode.value === 'manual') {
-        startManualDrop();
+        if (balance.credits.value >= betAmount.value * ballsPerBet.value) {
+          clickSynth.triggerAttackRelease('8n');
+          updateBalance(-betAmount.value * ballsPerBet.value);
+          startManualDrop();
+        }
       } else if (gameMode.value === 'auto') {
         startAutoBetting();
       }
     }
+
+    // En modo auto, descuenta la apuesta antes de cada ronda
+    async function autoBetLoop() {
+      if (!isAutoBetting.value) return;
+      if (numberOfBets.value > 0 && betsPlayed.value >= numberOfBets.value) {
+        stopAutoBetting();
+        return;
+      }
+      if (balance.credits.value >= betAmount.value * ballsPerBet.value) {
+        updateBalance(-betAmount.value * ballsPerBet.value);
+        await playRound();
+        betsPlayed.value++;
+        setTimeout(autoBetLoop, 500);
+      } else {
+        stopAutoBetting();
+      }
+    }
+
+    // Sumar solo la ganancia neta al finalizar la ronda
+    watch(totalWinThisRound, (newVal) => {
+      if (newVal !== null && newVal > 0) {
+        updateBalance(newVal);
+      }
+    });
 
     // --- Geometría del Tablero (Computadas) ---
     const pegs = computed(() => {
@@ -334,7 +442,11 @@ export default {
 
     const buckets = computed(() => {
       // Ajusta los multiplicadores para un ER del 95%
-      const baseMultipliers = { low: [10, 5, 2, 1.1, 0.5], high: [30, 8, 3, 1.5, 0.4] };
+      const baseMultipliers = { 
+        low:    [1.1, 1, 1.2, 1.5, 3],   // Riesgo bajo: premios consistentes y bajos.
+        medium: [0.5, 1.1, 2, 5, 15],  // Riesgo medio: equilibrio.
+        high:   [0.3, 0.5, 3, 10, 30]    // Riesgo alto: alta volatilidad.
+      };
       const adjustedMultipliers = adjustMultipliersForER(
         probabilidades.value, 
         0.95, // ER del 95%
@@ -370,20 +482,6 @@ export default {
       isAutoBetting.value = true;
       betsPlayed.value = 0;
       autoBetLoop();
-    }
-
-    async function autoBetLoop() {
-      if (!isAutoBetting.value) return;
-      if (numberOfBets.value > 0 && betsPlayed.value >= numberOfBets.value) {
-        stopAutoBetting();
-        return;
-      }
-
-      await playRound();
-      betsPlayed.value++;
-      
-      // Pausa breve antes de la siguiente ronda automática
-      setTimeout(autoBetLoop, 500);
     }
 
     function stopAutoBetting() {
@@ -432,6 +530,10 @@ export default {
           setTimeout(() => {
             hitPegs.delete(peg.id);
           }, 300); // La estela dura 300ms
+          // Sonido de nota según el bucket más cercano
+          // Buscar el bucket más cercano en X
+          const bucketIdx = Math.round(peg.x / bucketWidth.value);
+          if (notesArr[bucketIdx]) notesArr[bucketIdx].play();
         }
 
         if (distance < ballRadius + pegRadius) {
@@ -532,7 +634,6 @@ export default {
       gameState,
       totalWinThisRound,
       buttonText,
-      handleAction,
       boardWidth,
       boardHeight,
       pegs,
@@ -554,6 +655,8 @@ export default {
       gameAreaRef,
       hitPegs,
       lastHitBucketIndex,
+  balance: computed(() => balance.credits.value),
+      handleAction,
     };
   },
 };
@@ -603,7 +706,32 @@ export default {
   color: #fff;
 }
 
+.btn-back.top-left {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  z-index: 30;
+  background: #22313f;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 18px;
+  font-weight: bold;
+  font-size: 1rem;
+  box-shadow: 0 2px 8px #0002;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.2s, transform 0.1s;
+}
+.btn-back.top-left:hover {
+  background: #1abc9c;
+  color: #22313f;
+  transform: translateY(-2px) scale(1.04);
+}
+
 .controls-panel {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -617,6 +745,16 @@ export default {
   border: 1px solid #3a4c5a;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4); /* Sombra para profundidad */
   font-family: 'Poppins', sans-serif; /* Fuente moderna */
+}
+
+.balance-bar.left {
+  justify-content: flex-start;
+  margin: 0 0 18px 0;
+  padding: 10px 18px;
+  font-size: 1.1rem;
+  border-radius: 10px;
+  background: linear-gradient(90deg, #232526 0%, #414345 100%);
+  box-shadow: 0 2px 8px #0002;
 }
 
 .mode-selector {

@@ -1,20 +1,41 @@
 <template>
   <div class="blackjack">
+    
     <!-- Import Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
 
-    <h1 class="game-title">
-      <span class="title-icon">♠</span> Blackjack <span class="title-icon">♦</span>
-    </h1>
-    <div class="bet-section" v-if="!gameStarted">
-      <div class="bet-card">
-        <h2>Ingresa tu Apuesta</h2>
-        <div class="bet-input-wrapper">
-          <button @click="decreaseBet" class="bet-adjust-btn">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16"><path d="M4 8a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7A.5.5 0 0 1 4 8z"/></svg>
-          </button>
+    <!-- Encabezado del Juego -->
+    <header class="game-header">
+      <div class="header-container">
+        <div class="brand">
+          <h1 class="brand-title">PascualBet</h1>
+        </div>
+        <div class="game-info">
+          <span class="game-icon">♠️</span>
+          <span class="game-subtitle">Blackjack</span>
+        </div>
+        <div class="stats">
+          <div class="stat-item">
+            <span>Balance</span>
+            <strong>${{ credits.toFixed(2) }}</strong>
+          </div>
+          <div class="stat-item bet-stat">
+            <span>Apuesta</span>
+            <strong>${{ betAmount > 0 ? betAmount : '0' }}</strong>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="game-content">
+      <!-- Botón Volver (debajo del encabezado) -->
+      <button @click="goBack" class="btn-back-below-header" :disabled="gameStarted">⬅ Volver</button>
+  
+      <div class="bet-section" v-if="!gameStarted">
+        <div class="bet-card">
+          <h2>Ingresa tu Apuesta</h2>
           <div class="input-container">
             <span class="chip-icon">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
@@ -30,57 +51,54 @@
               @input="validateBetAmount"
             />
           </div>
-          <button @click="increaseBet" class="bet-adjust-btn">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16"><path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/></svg>
-          </button>
+          <div class="quick-bet-buttons">
+            <button class="quick-bet-button" :class="{selected: betAmount===10}" @click="betAmount=10">$10</button>
+            <button class="quick-bet-button" :class="{selected: betAmount===20}" @click="betAmount=20">$20</button>
+            <button class="quick-bet-button" :class="{selected: betAmount===50}" @click="betAmount=50">$50</button>
+            <button class="quick-bet-button" :class="{selected: betAmount===100}" @click="betAmount=100">$100</button>
+          </div>
+          <button @click="startGame" :disabled="betAmount < 10" class="deal-button">REPARTIR</button>
+          <p class="bet-help-text">
+            Selecciona una ficha o ingresa un monto. Mínimo: $10.
+          </p>
+          <button @click="openHelpModal" class="help-button">CÓMO JUGAR</button>
         </div>
-        <div class="quick-bet-buttons">
-          <button class="quick-bet-button" :class="{selected: betAmount===10}" @click="betAmount=10">$10</button>
-          <button class="quick-bet-button" :class="{selected: betAmount===20}" @click="betAmount=20">$20</button>
-          <button class="quick-bet-button" :class="{selected: betAmount===50}" @click="betAmount=50">$50</button>
-          <button class="quick-bet-button" :class="{selected: betAmount===100}" @click="betAmount=100">$100</button>
-        </div>
-        <button @click="startGame" :disabled="betAmount < 10" class="deal-button">REPARTIR</button>
-        <p class="bet-help-text">
-          Selecciona una ficha o ingresa un monto. Mínimo: $10.
-        </p>
-        <button @click="openHelpModal" class="help-button">CÓMO JUGAR</button>
       </div>
-    </div>
-    <div v-else class="table">
-      <div class="dealer">
-        <h2 class="area-title">CRUPIER</h2>
-        <div class="cards">
-          <div v-for="(card, index) in dealerCards" :key="'dealer-' + index" class="card">
-            <span v-if="index === 0 && playerTurn">🂠</span>
-            <span v-else>
+      <div v-else class="table">
+        <div class="dealer">
+          <h2 class="area-title">CRUPIER</h2>
+          <div class="cards">
+            <div v-for="(card, index) in dealerCards" :key="'dealer-' + index" class="card">
+              <span v-if="index === 0 && playerTurn">🂠</span>
+              <span v-else>
+                <span>{{ card.rank }}</span>
+                <span class="suit">{{ card.suit }}</span>
+              </span>
+            </div>
+          </div>
+          <p>Puntuación: {{ playerTurn ? '?' : dealerScore }}</p>
+        </div>
+        <div class="player">
+          <h2 class="area-title">JUGADOR</h2>
+          <div class="cards">
+            <div v-for="(card, index) in playerCards" :key="'player-' + index" class="card">
               <span>{{ card.rank }}</span>
               <span class="suit">{{ card.suit }}</span>
-            </span>
+            </div>
           </div>
+          <p>Puntuación: {{ playerScore }}</p>
+          <p>💵 Apuesta: {{ betAmount }}</p>
         </div>
-        <p>Puntuación: {{ playerTurn ? '?' : dealerScore }}</p>
       </div>
-      <div class="player">
-        <h2 class="area-title">JUGADOR</h2>
-        <div class="cards">
-          <div v-for="(card, index) in playerCards" :key="'player-' + index" class="card">
-            <span>{{ card.rank }}</span>
-            <span class="suit">{{ card.suit }}</span>
-          </div>
-        </div>
-        <p>Puntuación: {{ playerScore }}</p>
-        <p>💵 Apuesta: {{ betAmount }}</p>
+      <div class="actions" v-if="playerTurn && gameStarted">
+        <button @click="hit">PEDIR CARTA</button>
+        <button @click="stand">PLANTARSE</button>
       </div>
-    </div>
-    <div class="actions" v-if="playerTurn && gameStarted">
-      <button @click="hit">PEDIR CARTA</button>
-      <button @click="stand">PLANTARSE</button>
-    </div>
-    <div v-if="gameOver" class="game-over">
-      <h2>{{ resultMessage }}</h2>
-      <button @click="resetGame">JUGAR DE NUEVO</button>
-      <button @click="openHelpModal" class="help-button">VER REGLAS</button>
+      <div v-if="gameOver" class="game-over">
+        <h2>{{ resultMessage }}</h2>
+        <button @click="resetGame">JUGAR DE NUEVO</button>
+        <button @click="openHelpModal" class="help-button">VER REGLAS</button>
+      </div>
     </div>
     
     <!-- Modal de Cómo Jugar -->
@@ -96,15 +114,23 @@
             <h3 class="manual-subtitle">Valor de las Cartas</h3>
             <div class="card-examples-grid">
               <div class="card-example-item">
-                <div class="card-example"><span class="black">7♠</span></div>
+                <div class="card">
+                  <span>7</span><span class="suit black">♠</span>
+                </div>
                 <p>Cartas 2-10 valen su número.</p>
               </div>
               <div class="card-example-item">
-                <div class="card-example"><span class="red">K♦</span></div>
+                <div class="card-group">
+                  <div class="card small"><span class="red">K</span><span class="suit red">♦</span></div>
+                  <div class="card small"><span class="black">Q</span><span class="suit black">♣</span></div>
+                  <div class="card small"><span class="black">J</span><span class="suit black">♠</span></div>
+                </div>
                 <p>Figuras (J, Q, K) valen 10.</p>
               </div>
               <div class="card-example-item">
-                <div class="card-example"><span class="red">A♥</span></div>
+                <div class="card">
+                  <span class="red">A</span><span class="suit red">♥</span>
+                </div>
                 <p>As (A) vale 1 u 11.</p>
               </div>
             </div>
@@ -140,7 +166,11 @@
 </template>
 
 <script>
+import { balance, updateBalance } from '../../store/balance.js';
 export default {
+  setup() {
+    return { ...balance };
+  },
   data() {
     return {
       deck: [],
@@ -163,22 +193,57 @@ export default {
       return this.calculateScore(this.dealerCards);
     },
   },
+  mounted() {
+    this.resetGame();
+    // --- Sonidos suaves y acordes ---
+    if (window.Tone === undefined) {
+      import('tone').then(Tone => {
+        window.Tone = Tone;
+        // Sonido de carta (repartir y pedir)
+        this.cardSynth = new Tone.NoiseSynth({
+          volume: -10,
+          envelope: { attack: 0.001, decay: 0.09, sustain: 0, release: 0.01 }
+        }).toDestination();
+        this.cardFilter = new Tone.Filter(1200, "highpass").toDestination();
+        this.cardSynth.connect(this.cardFilter);
+        // Sonido de ganar
+        this.winSynth = new Tone.PolySynth().toDestination();
+        this.winSynth.set({ volume: -14 });
+        // Sonido de perder (acorde menor)
+        this.loseSynth = new Tone.PolySynth().toDestination();
+        this.loseSynth.set({ volume: -14 });
+        // Sonido de empate
+        this.tieSynth = new Tone.FMSynth({
+          volume: -18
+        }).toDestination();
+      });
+    } else {
+      this.cardSynth = new window.Tone.NoiseSynth({
+        volume: -10,
+        envelope: { attack: 0.001, decay: 0.09, sustain: 0, release: 0.01 }
+      }).toDestination();
+      this.cardFilter = new window.Tone.Filter(1200, "highpass").toDestination();
+      this.cardSynth.connect(this.cardFilter);
+      this.winSynth = new window.Tone.PolySynth().toDestination();
+      this.winSynth.set({ volume: -14 });
+      this.loseSynth = new window.Tone.PolySynth().toDestination();
+      this.loseSynth.set({ volume: -14 });
+      this.tieSynth = new window.Tone.FMSynth({
+        volume: -18
+      }).toDestination();
+    }
+  },
   methods: {
-    openHelpModal() {
-      this.showHelpModal = true;
-    },
-    closeHelpModal() {
-      this.showHelpModal = false;
-    },
-    validateBetAmount() {
-      if (this.betAmount < 10) {
-        this.betAmount = 0; // Resetea si la cantidad es menor al mínimo
-      }
-    },
     startGame() {
       // Validar apuesta antes de iniciar
       if (this.betAmount < 10) {
         alert("La apuesta mínima es de $10.");
+        return;
+      }
+
+      // Validar créditos suficientes
+      if (this.betAmount > this.credits) {
+        alert("No tienes suficientes créditos para esta apuesta.");
         return;
       }
 
@@ -190,7 +255,27 @@ export default {
       this.playerTurn = true;
       this.gameOver = false;
       this.gameStarted = true;
+      updateBalance(-this.betAmount); // Restar la apuesta del balance
       this.resultMessage = "";
+      // Sonido de repartir cartas
+      if (window.Tone && this.cardSynth) {
+        window.Tone.start && window.Tone.start();
+        this.cardSynth.triggerAttackRelease('8n');
+      }
+
+      // Comprobar si el jugador tiene Blackjack (21) al inicio
+      if (this.playerScore === 21) {
+        this.playerTurn = false; // El turno del jugador termina
+        // Comprobar si el crupier también tiene Blackjack para un empate
+        if (this.dealerScore === 21) {
+          updateBalance(this.betAmount); // Devolver la apuesta
+          this.endGame("¡Empate! Ambos tienen Blackjack.");
+        } else {
+          const winnings = this.betAmount * 2.5; // Pago 3:2 por Blackjack
+          updateBalance(winnings);
+          this.endGame(`¡Blackjack! Ganaste $${winnings.toFixed(2)}`);
+        }
+      }
     },
     resetGame() {
       this.gameStarted = false;
@@ -198,6 +283,7 @@ export default {
       this.playerCards = [];
       this.dealerCards = [];
       this.resultMessage = "";
+      this.gameOver = false; // Oculta los botones de "Jugar de nuevo"
     },
     increaseBet() {
       this.betAmount = Math.max(10, (this.betAmount || 0) + 10);
@@ -262,33 +348,114 @@ export default {
       return score;
     },
     hit() {
-      if (this.gameOver) return; // Evita que se pidan cartas si el juego ya terminó
+      if (window.Tone && this.cardSynth) {
+        window.Tone.start && window.Tone.start();
+        this.cardSynth.triggerAttackRelease('16n');
+      }
+      if (this.gameOver) return;
       this.playerCards.push(this.drawCard());
       if (this.playerScore > 21) {
         this.endGame("¡Te pasaste! El crupier gana.");
+      } else if (this.playerScore === 21) {
+        // Si el jugador llega a 21, su turno termina y se pasa al crupier.
+        this.stand();
       }
     },
     stand() {
-      if (this.gameOver) return; // Evita que se interactúe si el juego ya terminó
+      if (this.gameOver) return;
       this.playerTurn = false;
       while (this.dealerScore < 17) {
         this.dealerCards.push(this.drawCard());
       }
       if (this.dealerScore > 21 || this.playerScore > this.dealerScore) {
-        this.endGame("¡Ganaste!");
+        const winnings = this.betAmount * 2;
+        updateBalance(winnings);
+        this.endGame(`¡Ganaste! (+$${winnings})`);
       } else if (this.playerScore < this.dealerScore) {
         this.endGame("El crupier gana.");
       } else {
+        updateBalance(this.betAmount); // Devolver la apuesta en caso de empate
         this.endGame("Es un empate.");
       }
     },
     endGame(message) {
       this.gameOver = true;
       this.resultMessage = message;
+      // Sonido según resultado
+      if (window.Tone) {
+        if (message.includes('Ganaste')) {
+          this.winSynth && this.winSynth.triggerAttackRelease(['C6', 'E6', 'G6'], '8n');
+        } else if (message.includes('empate') || message.includes('Empate')) {
+          this.tieSynth && this.tieSynth.triggerAttackRelease('C5', '8n');
+        } else if (message.includes('crupier gana') || message.includes('Crupier gana')) {
+          // Sonido de acorde menor para perder
+          this.loseSynth && this.loseSynth.triggerAttackRelease(['A3', 'C4', 'E4'], '8n');
+        } else {
+          this.loseSynth && this.loseSynth.triggerAttackRelease(['A3', 'C4', 'E4'], '8n');
+        }
+      }
     },
+    openHelpModal() {
+      this.showHelpModal = true;
+    },
+    closeHelpModal() {
+      this.showHelpModal = false;
+    },
+    validateBetAmount() {
+      // Asegurarse de que la apuesta sea un número y no esté vacía
+      if (isNaN(this.betAmount) || this.betAmount === '') {
+        this.betAmount = 0;
+        return;
+      }
+      // Limitar la apuesta a un máximo de 500
+      this.betAmount = Math.min(this.betAmount, 500);
+    },
+    goBack() {
+      // Navega al menú principal
+      if (this.$router) {
+        this.$router.push('/menu');
+      }
+    }
   },
   mounted() {
     this.resetGame();
+    // --- Sonidos suaves y acordes ---
+    if (window.Tone === undefined) {
+      import('tone').then(Tone => {
+        window.Tone = Tone;
+        // Sonido de carta (repartir y pedir)
+        this.cardSynth = new Tone.NoiseSynth({
+          volume: -10,
+          envelope: { attack: 0.001, decay: 0.09, sustain: 0, release: 0.01 }
+        }).toDestination();
+        this.cardFilter = new Tone.Filter(1200, "highpass").toDestination();
+        this.cardSynth.connect(this.cardFilter);
+        // Sonido de ganar
+        this.winSynth = new Tone.PolySynth().toDestination();
+        this.winSynth.set({ volume: -14 });
+        // Sonido de perder (acorde menor)
+        this.loseSynth = new Tone.PolySynth().toDestination();
+        this.loseSynth.set({ volume: -14 });
+        // Sonido de empate
+        this.tieSynth = new Tone.FMSynth({
+          volume: -18
+        }).toDestination();
+      });
+    } else {
+      this.cardSynth = new window.Tone.NoiseSynth({
+        volume: -10,
+        envelope: { attack: 0.001, decay: 0.09, sustain: 0, release: 0.01 }
+      }).toDestination();
+      this.cardFilter = new window.Tone.Filter(1200, "highpass").toDestination();
+      this.cardSynth.connect(this.cardFilter);
+      this.winSynth = new window.Tone.PolySynth().toDestination();
+      this.winSynth.set({ volume: -14 });
+      this.loseSynth = new window.Tone.PolySynth().toDestination();
+      this.loseSynth.set({ volume: -14 });
+      this.tieSynth = new window.Tone.FMSynth({
+        volume: -18
+      }).toDestination();
+    }
   },
 };
 </script>
@@ -299,31 +466,137 @@ export default {
   background: #121212; /* Negro mate */
   color: #f5f5f5; /* Blanco cálido */
   padding: 2rem;
+  padding-top: 8rem; /* Espacio para el header fijo */
   min-height: 100vh;
 }
 
-.game-title {
-  font-family: 'Playfair Display', serif;
-  font-size: 3rem;
-  text-align: center;
-  color: #d4af37; /* Dorado */
-  text-shadow: 0 0 15px rgba(212, 175, 55, 0.5);
-  margin-bottom: 2rem;
+/* Nuevo Encabezado */
+.game-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background: linear-gradient(180deg, #1f2937, #121212);
+  border-bottom: 1px solid #2a3a50;
+  padding: 1rem 2rem;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+  z-index: 100;
 }
-.title-icon {
-  color: #c0c0c0; /* Plateado */
-  font-family: serif;
-  margin: 0 1rem;
+
+.header-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.brand-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 2rem;
+  color: #d4af37;
+  text-shadow: 0 0 10px rgba(212, 175, 55, 0.4);
+  margin: 0;
+}
+
+.game-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.game-content {
+  padding: 0 2rem 2rem 2rem; /* Eliminamos el padding superior para acercar el botón */
+}
+
+.btn-back-below-header {
+  /* position: absolute; ya no es necesario */
+  margin-bottom: 1.5rem; /* Espacio entre el botón y la sección de apuestas */
+  background: linear-gradient(45deg, #f0b90b, #d4af37, #b8860b); /* Degradado dorado */
+  color: white;
+  border: none; /* Sin borde para un look más limpio con el degradado */
+  border-radius: 20px; /* Bordes más redondeados */
+  padding: 0.6rem 1.2rem;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3); /* Sombra sutil */
+}
+
+.btn-back-below-header:hover {
+  box-shadow: 0 0 20px rgba(212, 175, 55, 0.7); /* Glow dorado suave */
+  transform: translateY(-1px);
+}
+
+.btn-back-below-header:disabled {
+  background: #333;
+  color: #666;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.game-icon {
+  font-size: 1.5rem;
+}
+
+.game-subtitle {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #e0e0e0;
+}
+
+.stats {
+  display: flex;
+  gap: 1rem;
+}
+
+.stat-item {
+  background: rgba(0,0,0,0.3);
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: 1px solid #2a3a50;
+  font-size: 0.9rem;
+  color: #a0aec0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.stat-item strong {
+  color: #ffffff;
+  font-size: 1.1rem;
+}
+
+.stat-item.bet-stat strong {
+  color: #f0b90b; /* Dorado para la apuesta */
 }
 
 .bet-section {
   margin-bottom: 2rem;
-  text-align: center;
+  background: #1a202c;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.4);
 }
+
+.bet-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem; /* Espaciado uniforme entre todos los elementos */
+}
+
 .bet-section h2 {
   font-weight: 600;
-  margin-bottom: 1rem;
   letter-spacing: 1px;
+  margin: 0; /* Eliminamos el margen individual para usar gap */
 }
 
 .bet-input {
@@ -350,9 +623,8 @@ export default {
 }
 
 .deal-button {
-  width: 100%;
-  padding: 1rem 2rem;
-  font-size: 1.5rem;
+  padding: 0.8rem 2.5rem; /* Relleno ajustado */
+  font-size: 1.2rem; /* Fuente más pequeña */
   font-weight: 700;
   letter-spacing: 1px;
   background-color: #001f3f; /* Azul marino oscuro */
@@ -398,7 +670,7 @@ export default {
 }
 
 .help-button {
-  margin-top: 1rem;
+  margin-top: 0; /* Eliminamos el margen individual para usar gap */
   background: none;
   border: none;
   color: #aaa;
@@ -528,6 +800,100 @@ export default {
   padding-bottom: 0.5rem;
 }
 
+.manual ul {
+  list-style-position: inside; /* Mantiene las viñetas dentro del contenedor */
+  padding-left: 0; /* Elimina el padding por defecto que empuja la lista */
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.card-examples-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1rem;
+  align-items: start; /* Alinea los items al inicio */
+}
+
+.card-example-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.75rem;
+}
+
+.card-group {
+  display: flex;
+  justify-content: center;
+  transform: scale(0.8); /* Hace el grupo de cartas un poco más pequeño */
+}
+
+.card-group .card {
+  margin: -0.8rem; /* Superpone ligeramente las cartas */
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: #1a202c;
+  padding: 2rem;
+  border-radius: 12px;
+  border: 1px solid #2a3a50;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  width: 90%;
+  max-width: 800px;
+  position: relative;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #2a3a50;
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+}
+
+.close-button {
+  background: #2d3748;
+  color: #a0aec0;
+  border: 1px solid #4a5568;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.2rem;
+  transition: all 0.2s ease;
+}
+
+.close-button:hover {
+  background: #d4af37;
+  color: #121212;
+  box-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+}
+
+.modal-footer {
+  text-align: center;
+  margin-top: 2rem;
+}
+
 .example {
   margin-top: 1rem;
   background: rgba(0,0,0,0.2);
@@ -545,10 +911,25 @@ export default {
   border: 1px solid #d4af37;
 }
 
+.understood-button {
+  background: linear-gradient(45deg, #f0b90b, #d4af37, #b8860b);
+  color: #121212;
+  border: none;
+  border-radius: 10px;
+  padding: 0.8rem 2rem;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  box-shadow: 0 5px 20px rgba(212, 175, 55, 0.4);
+  transition: all 0.2s ease;
+}
+.understood-button:hover {
+  box-shadow: 0 0 20px rgba(212, 175, 55, 0.7);
+}
 .quick-bet-buttons {
   display: flex;
-  gap: 16px;
-  margin: 18px 0 10px 0;
+  gap: 1rem;
+  margin: 0; /* Eliminamos el margen individual para usar gap */
   justify-content: center;
 }
 .quick-bet-button {

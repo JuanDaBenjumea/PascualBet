@@ -1,5 +1,6 @@
 <template>
   <div class="slot-machine-container">
+    
     <!-- Fondo animado de partículas -->
     <div class="particles">
       <div class="particle" v-for="n in 30" :key="n"></div>
@@ -7,13 +8,18 @@
 
     <!-- Header with theme styling -->
     <header class="game-header">
-      <div class="container">
+      <div class="container" style="
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+">
         <div class="brand">
           <h1 class="game-title">🎰 Tragamonedas PascualBet 🎰</h1>
         </div>
         <div class="user-actions">
           <div class="balance">
-            Créditos: <strong>${{ credits }}</strong>
+            Créditos: <strong>${{ credits.toFixed(2) }}</strong>
           </div>
           <div class="balance">
             Apuesta: <strong class="danger-text">${{ currentBet }}</strong>
@@ -144,6 +150,7 @@
             <div class="back-section">
               <button 
                 @click="goBack"
+                :disabled="spinning"
                 class="btn btn-outline"
               >
                 Volver al Menú
@@ -157,11 +164,14 @@
 </template>
 
 <script>
+import { balance, updateBalance } from '../../store/balance.js';
 export default {
   name: 'SlotMachine',
+  setup() {
+    return { ...balance };
+  },
   data() {
     return {
-      credits: 1000,
       currentBet: 10,
       minBet: 5,
       maxBet: 100,
@@ -183,7 +193,7 @@ export default {
       },
       animationId: null,
       spinStartTime: 0,
-      spinDuration: 5000, // Aumentamos la duración para un giro más lento
+  spinDuration: 4000, // Giro más rápido: 4 segundos
       reelAnimations: [0, 0, 0],
       symbolTotalHeight: 100, // Total vertical space for a symbol (content + padding + margin)
       symbolContentHeight: 60, // Height of the actual symbol text/image
@@ -191,7 +201,8 @@ export default {
       allReelSymbols: [
         [], [], [] // Arrays to hold all symbols for each reel during animation
       ],
-      spinAudio: null // Propiedad para el objeto de audio
+      spinAudio: null, // Propiedad para el objeto de audio
+      jackpotAudio: null // Nuevo: audio del jackpot
     }
   },
   
@@ -202,6 +213,9 @@ export default {
     // Inicializamos el audio aquí para que se precargue
     this.spinAudio = new Audio('/sounds/slot-spin.mp3');
     this.spinAudio.preload = 'auto';
+    // Nuevo: inicializar el audio del jackpot
+    this.jackpotAudio = new Audio('/Sounds/Slot-Machine-Jackpot-Sound-Effect.mp3');
+    this.jackpotAudio.preload = 'auto';
   },
 
   beforeUnmount() {
@@ -452,18 +466,16 @@ export default {
       if (this.spinAudio) {
         this.spinAudio.currentTime = 0; // Reiniciar el sonido
         const playPromise = this.spinAudio.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(error => {
-            // Esto es normal si el navegador bloquea el autoplay.
-            // El clic del usuario debería permitirlo, pero es bueno tener el control de errores.
-            console.error("Error al reproducir el sonido:", error);
-            alert("Tu navegador ha bloqueado la reproducción de sonido. Por favor, habilita el sonido para este sitio en la configuración de tu navegador.");
-          });
-        }
+        
+      }
+      // Nuevo: reproducir el sonido jackpot
+      if (this.jackpotAudio) {
+        this.jackpotAudio.currentTime = 0;
+        this.jackpotAudio.play().catch(() => {});
       }
 
       this.spinning = true;
-      this.credits -= this.currentBet;
+      updateBalance(-this.currentBet);
       this.lastWin = 0;
       this.winMessage = '';
 
@@ -499,7 +511,7 @@ export default {
 
       if (payout) {
         this.lastWin = this.currentBet * payout;
-        this.credits += this.lastWin;
+        updateBalance(this.lastWin);
         this.winMessage = `¡${combination}!`;
       } else {
         // Check for any two matching symbols (smaller payout)
@@ -511,7 +523,7 @@ export default {
         const pairs = Object.entries(counts).filter(([symbol, count]) => count >= 2);
         if (pairs.length > 0) {
           this.lastWin = Math.floor(this.currentBet * 0.5);
-          this.credits += this.lastWin;
+          updateBalance(this.lastWin);
           this.winMessage = '¡Par ganador!';
         }
       }

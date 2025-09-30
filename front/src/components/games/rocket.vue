@@ -1,13 +1,29 @@
 <template>
   <div class="rocket-game-container">
+    <!-- Import Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
+
     <!-- Header -->
     <header class="game-header">
-      <h1 class="game-title">🚀 Cohete PascualBet</h1>
-      <div class="user-actions">
-        <div class="balance">Créditos: <strong>${{ credits }}</strong></div>
-        <div class="balance">Apuesta: <strong class="danger-text">${{ betAmount }}</strong></div>
+      <div class="header-left">
+        <button @click="goBack" class="btn-back" :disabled="hasPlacedBet">⬅ Volver</button>
+        <h1 class="game-title">🚀 PascualBet</h1>
       </div>
-      <button @click="goBack" class="btn-back">Volver</button>
+      <div class="header-center">
+        <h2 class="game-subtitle">Cohete</h2>
+      </div>
+      <div class="header-right">
+        <div class="balance-display">
+          <span>Apuesta</span>
+          <strong :class="{ 'bet-active': betAmount > 0 }">${{ betAmount.toFixed(2) }}</strong>
+        </div>
+        <div class="balance-display">
+          <span>Balance</span>
+          <strong>${{ credits.toFixed(2) }}</strong>
+        </div>
+      </div>
     </header>
 
     <!-- Main Layout -->
@@ -15,8 +31,12 @@
       <!-- Área del Juego (Gráfico) -->
       <div class="game-area-wrapper">
         <div class="game-area">
-          <div class="multiplier-display" :class="{ 'crashed-text': gameState === 'crashed' }">
-            <span v-if="gameState === 'running' || gameState === 'crashed'">{{ currentMultiplier.toFixed(2) }}x</span>
+          <div 
+            class="multiplier-display" 
+            :class="{ 'crashed-text': gameState === 'crashed', 'milestone-pulse': milestoneReached }"
+          >
+            <span v-if="gameState === 'running'">{{ currentMultiplier.toFixed(2) }}x</span>
+            <span v-if="gameState === 'crashed'">¡CRASH! @ {{ crashPoint.toFixed(2) }}x</span>
             <span v-if="gameState === 'waiting'">Esperando la siguiente ronda...</span>
             <span v-if="gameState === 'starting'">Despegando en {{ (countdown / 1000).toFixed(1) }}s</span>
           </div>
@@ -24,53 +44,51 @@
         </div>
 
         <!-- Panel de Controles Inferior -->
-        <div class="controls-panel">
-          <div class="bet-controls">
-            <button @click="decreaseBet" :disabled="isBettingLocked" class="btn control-btn">-</button>
-            <div class="bet-display">
-              <label>Apuesta</label>
-              <input type="number" v-model.number="betAmount" :disabled="isBettingLocked" />
+        <div class="controls-panel-wrapper">
+          <div class="controls-panel">
+            <div class="bet-controls">
+              <label>Monto de Apuesta</label>
+              <div class="input-group">
+                <button @click="decreaseBet" :disabled="isBettingLocked" class="btn control-btn">-</button>
+                <input type="number" v-model.number="betAmount" :disabled="isBettingLocked" />
+                <button @click="increaseBet" :disabled="isBettingLocked" class="btn control-btn">+</button>
+              </div>
+              <div class="quick-bet-buttons">
+                <button @click="setBet(10)" :disabled="isBettingLocked" class="btn quick-bet-btn">$10</button>
+                <button @click="setBet(25)" :disabled="isBettingLocked" class="btn quick-bet-btn">$25</button>
+                <button @click="setBet(50)" :disabled="isBettingLocked" class="btn quick-bet-btn">$50</button>
+                <button @click="setMaxBet" :disabled="isBettingLocked" class="btn quick-bet-btn">MAX</button>
+              </div>
             </div>
-            <button @click="increaseBet" :disabled="isBettingLocked" class="btn control-btn">+</button>
-          </div>
 
-          <div class="action-controls">
-            <button 
-              class="btn action-button"
-              :class="buttonClass"
-              @click="handleAction"
-              :disabled="buttonDisabled"
-            >
-              {{ buttonText }}
-            </button>
-            <button @click="setMaxBet" :disabled="isBettingLocked" class="btn max-bet-btn">
-              APUESTA MÁX
-            </button>
-          </div>
+            <div class="auto-cashout-controls">
+              <label>Auto Retirar (Opcional)</label>
+              <div class="input-group">
+                <input type="number" v-model.number="autoCashout" :disabled="isBettingLocked" placeholder="2.00" />
+                <span>x</span>
+              </div>
+            </div>
 
-          <div class="auto-cashout-controls">
-            <label>Auto Retirar</label>
-            <input type="number" v-model.number="autoCashout" :disabled="isBettingLocked" placeholder="2.00x" />
+            <div class="action-controls">
+              <button 
+                class="btn action-button"
+                :class="buttonClass"
+                @click="handleAction"
+                :disabled="buttonDisabled"
+              >
+                {{ buttonText }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
       <!-- Panel de Información Derecho -->
       <div class="info-panel">
-        <h2 class="info-title">Resultados</h2>
+        <h2 class="info-title">Historial de Rondas</h2>
         <div class="history-list">
           <div v-for="(result, index) in history" :key="index" class="history-item" :class="getHistoryClass(result)">
             {{ result.toFixed(2) }}x
-          </div>
-        </div>
-        <div class="game-info">
-          <div class="info-item">
-            <span>Apuesta Mínima:</span>
-            <strong>$1</strong>
-          </div>
-          <div class="info-item">
-            <span>Apuesta Máxima:</span>
-            <strong>$1000</strong>
           </div>
         </div>
         <div v-if="gameMessage" class="game-message" :class="messageClass">
@@ -84,32 +102,40 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed, reactive } from 'vue';
 import { useRouter } from 'vue-router';
+import * as Tone from 'tone';
+// Importa el saldo global y la función para actualizarlo
+import { balance, updateBalance } from '../../store/balance.js';
 
 // --- State ---
-const credits = ref(1000);
+// Usar el saldo global reactivo
+const credits = balance.credits;
 const betAmount = ref(10);
-const betStep = 10;
-const autoCashout = ref(2.0);
+const betStep = 5;
+const autoCashout = ref(null);
 const gameState = ref('waiting'); // 'waiting', 'starting', 'running', 'crashed'
 const currentMultiplier = ref(1.00);
 const hasPlacedBet = ref(false);
 const hasCashedOut = ref(false);
-const lastGameResult = ref(null);
 const history = ref([]);
 const countdown = ref(5000);
 const gameMessage = ref('');
+const milestoneReached = ref(false);
 const router = useRouter();
+
+// --- Dev & Testing ---
+const crashSeed = ref(null); // Set to a number (e.g., 2.5) to force a crash point for testing. Null for random.
 
 // --- Canvas & Animation ---
 const gameCanvas = ref(null);
 let ctx = null;
 let animationFrameId = null;
 const rocket = reactive({
-  x: 60,
-  y: 400,
+  x: 50,
+  y: 400, // Start at bottom
   rotation: 0,
   trail: []
 });
+const stars = ref([]);
 let gameStartTime = 0;
 let crashPoint = 0;
 let gameLoopInterval = null;
@@ -117,12 +143,12 @@ let gameLoopInterval = null;
 // --- UI Computed Properties ---
 const buttonText = computed(() => {
   if (gameState.value === 'running') {
-    return hasCashedOut.value ? `RETIRADO` : `RETIRAR @ ${currentMultiplier.value.toFixed(2)}x`;
+    return hasCashedOut.value ? `RETIRADO` : `RETIRAR`;
   }
   if (hasPlacedBet.value) {
     return 'ESPERANDO RONDA';
   }
-  return 'APOSTAR';
+  return `APOSTAR $${betAmount.value}`;
 });
 
 const buttonClass = computed(() => {
@@ -131,7 +157,7 @@ const buttonClass = computed(() => {
 });
 
 const buttonDisabled = computed(() => {
-  const canBet = (gameState.value === 'waiting' || gameState.value === 'starting') && !hasPlacedBet.value;
+  const canBet = (gameState.value === 'waiting' || gameState.value === 'starting') && !hasPlacedBet.value && credits.value >= betAmount.value;
   const canCashout = gameState.value === 'running' && hasPlacedBet.value && !hasCashedOut.value;
   return !canBet && !canCashout;
 });
@@ -153,9 +179,10 @@ function handleAction() {
   if (buttonDisabled.value) return;
   if (gameState.value === 'running') {
     cashOut(currentMultiplier.value);
+    // playSound('cashout');
   } else if (gameState.value === 'waiting' || gameState.value === 'starting') {
     if (credits.value < betAmount.value) return;
-    credits.value -= betAmount.value;
+    updateBalance(-betAmount.value); // Descuenta del saldo global
     hasPlacedBet.value = true;
   }
 }
@@ -164,8 +191,8 @@ function cashOut(multiplier) {
   if (!hasCashedOut.value) {
     hasCashedOut.value = true;
     const winnings = betAmount.value * (multiplier > 0 ? multiplier : 1);
-    credits.value += winnings;
-    gameMessage.value = `¡Ganaste ${winnings.toFixed(2)}!`;
+    updateBalance(winnings); // Suma al saldo global
+    gameMessage.value = `¡Ganaste $${winnings.toFixed(2)}!`;
   }
 }
 
@@ -176,15 +203,20 @@ function getHistoryClass(result) {
 }
 
 function decreaseBet() {
-  betAmount.value = Math.max(1, betAmount.value - betStep);
+  betAmount.value = Math.max(1, Math.round(betAmount.value - betStep));
 }
 
 function increaseBet() {
-  betAmount.value = Math.min(1000, betAmount.value + betStep);
+  const newBet = Math.round(betAmount.value + betStep);
+  betAmount.value = Math.min(1000, newBet);
 }
 
 function setMaxBet() {
-  betAmount.value = 1000;
+  betAmount.value = Math.min(1000, credits.value);
+}
+
+function setBet(amount) {
+  betAmount.value = amount;
 }
 
 function startGame() {
@@ -195,8 +227,11 @@ function startGame() {
   gameStartTime = Date.now();
   
   // En un juego real, esto vendría del servidor.
-  crashPoint = 1 + Math.pow(Math.random(), 4) * 20; // Crash entre 1x y 21x, con más probabilidad en valores bajos
-  console.log(`Esta ronda terminará en ${crashPoint.toFixed(2)}x`);
+  if (crashSeed.value !== null) {
+    crashPoint = crashSeed.value;
+  } else {
+    crashPoint = 1 + Math.pow(Math.random(), 4) * 20; // Crash entre 1x y 21x, con más probabilidad en valores bajos
+  }
 
   animationFrameId = requestAnimationFrame(gameLoop);
 }
@@ -204,6 +239,14 @@ function startGame() {
 function gameLoop() {
   const elapsedTime = (Date.now() - gameStartTime) / 1000; // en segundos
   currentMultiplier.value = Math.pow(1.07, elapsedTime);
+
+  // Check for milestones
+  const milestones = [2, 5, 10];
+  const lastMilestone = milestones.reverse().find(m => currentMultiplier.value >= m);
+  if (lastMilestone && !milestoneReached.value) {
+    milestoneReached.value = true;
+    setTimeout(() => milestoneReached.value = false, 300); // Pulse for 300ms
+  }
 
   if (hasPlacedBet.value && !hasCashedOut.value && autoCashout.value > 0 && currentMultiplier.value >= autoCashout.value) {
       cashOut(autoCashout.value);
@@ -217,10 +260,20 @@ function gameLoop() {
   }
 }
 
+let mineSynth;
+onMounted(() => {
+  // Sonido de explosión tipo mina, lento y más fuerte
+  mineSynth = new Tone.MembraneSynth({
+    pitchDecay: 0.15,
+    octaves: 10,
+    envelope: { attack: 0.001, decay: 1.2, sustain: 0, release: 0.8 },
+    volume: 8 // volumen alto
+  }).toDestination();
+});
+
 function endGame() {
   gameState.value = 'crashed';
   currentMultiplier.value = crashPoint;
-  lastGameResult.value = crashPoint;
 
   // Añadir al historial
   history.value.unshift(crashPoint); // unshift para añadir al principio
@@ -229,8 +282,15 @@ function endGame() {
   draw(); // Dibuja el estado final "crashed"
   cancelAnimationFrame(animationFrameId);
 
+  // Sonido de explosión tipo mina, aún más lento
+  if (mineSynth) {
+    Tone.start && Tone.start();
+    mineSynth.triggerAttackRelease('C1', '2n');
+  }
+
   if (hasPlacedBet.value && !hasCashedOut.value) {
-      gameMessage.value = 'Perdiste tu apuesta.';
+    gameMessage.value = `¡Crash! Perdiste $${betAmount.value}.`;
+    // No es necesario descontar aquí porque ya se descontó al apostar
   }
 }
 
@@ -252,24 +312,26 @@ function draw() {
   const height = gameCanvas.value.height; // 800x450
 
   // Clear canvas
-  ctx.clearRect(0, 0, width, height);
-
-  // Draw background and grid
-  ctx.fillStyle = '#0a1929';
+  ctx.fillStyle = '#0f172a';
   ctx.fillRect(0, 0, width, height);
-  drawGrid(width, height);
+
+  // Draw stars
+  drawStars(width, height);
 
   if (gameState.value === 'waiting') {
     return; // No dibujar gráfico si no está en juego
   }
 
   // Calcular posición del cohete
-  const elapsedTime = (Date.now() - gameStartTime) / 1000;
-  const progress = Math.min(elapsedTime / 12, 1); // Normaliza el tiempo para la curva
+  if (gameState.value === 'running' || gameState.value === 'crashed') {
+    const elapsedTime = (Date.now() - gameStartTime) / 1000;
+    const progress = Math.min(elapsedTime / 10, 1); // Normaliza el tiempo para la curva
+    const curvePower = 2.5;
 
-  rocket.x = 60 + progress * (width - 120);
-  rocket.y = height - 50 - Math.pow(progress, 2) * (height - 100);
-  rocket.rotation = -Math.atan(2 * progress * (height - 100) / (width - 120));
+    rocket.x = 50 + Math.pow(progress, 0.8) * (width - 100);
+    rocket.y = (height - 50) - Math.pow(progress, curvePower) * (height - 100);
+    rocket.rotation = -Math.atan(curvePower * Math.pow(progress, curvePower - 1) * (height - 100) / ((width - 100) * 0.8 * Math.pow(progress, -0.2)));
+  }
 
   // Actualizar y dibujar estela
   updateTrail();
@@ -282,21 +344,18 @@ function draw() {
   }
 }
 
-function drawGrid(width, height) {
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
-  ctx.lineWidth = 1;
-  for (let i = 0; i < width; i += 20) {
+function drawStars(width, height) {
+  stars.value.forEach(star => {
+    star.x -= star.speed;
+    if (star.x < 0) {
+      star.x = width;
+      star.y = Math.random() * height;
+    }
     ctx.beginPath();
-    ctx.moveTo(i, 0);
-    ctx.lineTo(i, height);
-    ctx.stroke();
-  }
-  for (let i = 0; i < height; i += 20) {
-    ctx.beginPath();
-    ctx.moveTo(0, i);
-    ctx.lineTo(width, i);
-    ctx.stroke();
-  }
+    ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255, 255, 255, ${star.opacity})`;
+    ctx.fill();
+  });
 }
 
 function drawRocket() {
@@ -305,29 +364,31 @@ function drawRocket() {
   ctx.rotate(rocket.rotation);
   
   // Cuerpo del cohete
-  ctx.fillStyle = '#d1d5db'; // Gris claro
+  ctx.fillStyle = '#e2e8f0'; // Gris claro
   ctx.beginPath();
-  ctx.moveTo(25, 0); // Punta
-  ctx.lineTo(-15, 12); // Base derecha
-  ctx.lineTo(-15, -12); // Base izquierda
+  ctx.moveTo(20, 0); // Punta
+  ctx.lineTo(-10, 8); // Base derecha
+  ctx.lineTo(-10, -8); // Base izquierda
   ctx.closePath();
   ctx.fill();
 
   // Aletas
-  ctx.fillStyle = '#e63946'; // Rojo
-  ctx.fillRect(-20, 12, 10, 5); // Aleta derecha
-  ctx.fillRect(-20, -17, 10, 5); // Aleta izquierda
+  ctx.fillStyle = '#ff007f'; // Magenta
+  ctx.fillRect(-12, 8, 8, 3); // Aleta derecha
+  ctx.fillRect(-12, -11, 8, 3); // Aleta izquierda
 
   ctx.restore();
 }
 
 function updateTrail() {
-  rocket.trail.push({ x: rocket.x - 25, y: rocket.y, radius: 8, opacity: 1 });
-  airplane.trail.forEach(p => {
+  const trailX = rocket.x - 15 * Math.cos(rocket.rotation);
+  const trailY = rocket.y - 15 * Math.sin(rocket.rotation);
+  rocket.trail.push({ x: trailX, y: trailY, radius: 5, opacity: 1 });
+  rocket.trail.forEach(p => {
     p.opacity -= 0.03;
     p.radius -= 0.15;
   });
-  airplane.trail = airplane.trail.filter(p => p.opacity > 0 && p.radius > 0);
+  rocket.trail = rocket.trail.filter(p => p.opacity > 0 && p.radius > 0);
 }
 
 function drawTrail() {
@@ -335,24 +396,31 @@ function drawTrail() {
   trailGradient.addColorStop(0, 'rgba(255, 220, 150, 0.8)');
   trailGradient.addColorStop(1, 'rgba(255, 100, 0, 0)');
 
-  airplane.trail.forEach(p => {
+  rocket.trail.forEach(p => {
     ctx.beginPath();
     ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(255, 220, 150, ${p.opacity * 0.5})`;
+    ctx.fillStyle = `rgba(0, 242, 255, ${p.opacity * 0.7})`; // Cian
     ctx.fill();
   });
 }
 
 function drawExplosion(x, y) {
-  ctx.fillStyle = '#ff4d4d';
-  ctx.font = 'bold 36px "Poppins", sans-serif';
+  ctx.fillStyle = '#ff007f'; // Magenta
+  ctx.font = 'bold 48px "Press Start 2P", monospace';
   ctx.textAlign = 'center';
   ctx.fillText('💥', x, y);
 }
 
 // --- Lifecycle Hooks ---
 onMounted(() => {
+  if (!gameCanvas.value) return;
   ctx = gameCanvas.value.getContext('2d');
+
+  // Initialize stars
+  for (let i = 0; i < 100; i++) {
+    stars.value.push({ x: Math.random() * 800, y: Math.random() * 450, radius: Math.random() * 1.5, opacity: Math.random(), speed: 0.2 + Math.random() * 0.3 });
+  }
+
   draw();
 
   // Main game cycle manager
@@ -361,6 +429,7 @@ onMounted(() => {
       gameState.value = 'starting'; // Inicia la cuenta regresiva
     } else if (gameState.value === 'starting') {
       countdown.value -= 100;
+      // playSound('countdown');
       if (countdown.value <= 0) {
         startGame();
       }
@@ -379,55 +448,104 @@ onUnmounted(() => {
 
 <style scoped>
 .rocket-game-container {
-  background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
-  color: #fff;
+  background: #0f172a; /* Azul noche */
+  color: #e2e8f0;
   min-height: 100vh;
   overflow: hidden;
   position: relative;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Montserrat', sans-serif;
+  display: flex;
+  flex-direction: column;
+  padding-top: 70px; /* Espacio para el header fijo */
 }
 
 /* Header */
 .game-header {
-  display: flex;
+  display: grid;
   justify-content: space-between;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
   padding: 1rem 2rem;
-  background: rgba(0,0,0,0.2);
-  border-bottom: 1px solid #223042;
+  background: #1e293b;
+  border-bottom: 1px solid #334155;
+  flex-shrink: 0;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 100;
 }
 
-.game-title {
-  font-size: 1.5rem;
-  font-weight: 700;
-}
-
-.user-actions {
+.header-left {
+  justify-self: start;
   display: flex;
   align-items: center;
   gap: 1.5rem;
 }
 
-.balance {
-  font-size: 1rem;
+.header-center {
+  justify-self: center;
 }
 
-.danger-text {
-  color: #ff4d4d;
+.header-right {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.game-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.game-subtitle {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #94a3b8; /* Gris claro */
+}
+
+.balance-display {
+  background: rgba(0,0,0,0.2);
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: 1px solid #334155;
+  font-size: 1rem;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.balance-display strong {
+  color: #fff;
+  font-weight: 600;
+}
+
+.balance-display strong.bet-active {
+  color: #00f2ff; /* Cian para la apuesta activa */
 }
 
 .btn-back {
   padding: 0.5rem 1rem;
-  background-color: #3a4c5a;
+  background-color: transparent;
   color: white;
-  border: none;
-  border-radius: 4px;
+  border: 1px solid #475569;
+  border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
   transition: background-color 0.2s;
 }
 .btn-back:hover {
-  background-color: #4f6a7e;
+  background-color: #334155;
+}
+.btn-back:disabled {
+  background-color: #1e293b;
+  color: #475569;
+  cursor: not-allowed;
+  border-color: #334155;
 }
 
 /* Layout */
@@ -436,23 +554,23 @@ onUnmounted(() => {
   grid-template-columns: 3fr 1fr;
   gap: 2rem;
   padding: 2rem;
-  height: calc(100vh - 70px); /* Ajustar altura */
+  flex-grow: 1;
 }
 
 .game-area-wrapper {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  background: #1e293b;
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
 }
 
 .game-area {
   position: relative;
   flex-grow: 1;
-  background-color: #000;
   border-radius: 8px;
-  border: 2px solid #4a5568;
   overflow: hidden;
-  box-shadow: inset 0 0 15px rgba(74, 85, 104, 0.5);
 }
 
 .multiplier-display {
@@ -460,58 +578,64 @@ onUnmounted(() => {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  font-size: 6rem;
+  font-size: 5rem;
   font-weight: 700;
   color: #fff;
-  text-shadow: 2px 2px 8px rgba(0,0,0,0.5);
+  text-shadow: 0 0 20px rgba(0, 242, 255, 0.5);
   z-index: 10;
+  transition: color 0.3s ease;
 }
 
 .multiplier-display.crashed-text {
-  color: #ff4d4d;
+  color: #ff007f; /* Magenta */
+  text-shadow: 0 0 20px rgba(255, 0, 127, 0.7);
+}
+
+.milestone-pulse {
+  animation: pulse-glow 0.5s ease-out;
+}
+@keyframes pulse-glow {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); }
+  50% { transform: translate(-50%, -50%) scale(1.1); }
 }
 
 /* Controls Panel */
+.controls-panel-wrapper {
+  background: transparent;
+}
 .controls-panel {
-  background: #1a202c;
   border-radius: 8px;
-  padding: 1rem;
-  display: grid;
-  grid-template-columns: 1fr 2fr 1fr;
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 1rem;
+  gap: 1.5rem;
 }
 
 .bet-controls {
   display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.input-group {
+  display: flex;
   align-items: center;
-  gap: 0.5rem;
-  background: #2d3748;
+  background: #0f172a;
   border-radius: 8px;
-  padding: 0.5rem;
+  border: 1px solid #334155;
+  overflow: hidden;
 }
 
 .control-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  font-size: 1.5rem;
-  font-weight: 700;
-  background: #4a5568;
+  background: #334155;
   border: none;
   color: white;
+  padding: 0.75rem;
+  font-size: 1.2rem;
 }
 
-.bet-display {
-  flex-grow: 1;
-  text-align: center;
-}
-.bet-display label {
-  font-size: 0.8rem;
-  color: #a0aec0;
-  display: block;
-}
-.bet-display input {
+.input-group input {
   background: transparent;
   border: none;
   color: white;
@@ -521,72 +645,75 @@ onUnmounted(() => {
   width: 100%;
 }
 
+.quick-bet-buttons {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+}
+.quick-bet-btn {
+  background: #334155;
+  border: 1px solid #475569;
+  color: #cbd5e1;
+  padding: 0.5rem;
+  border-radius: 6px;
+}
+
 .action-controls {
   display: flex;
-  gap: 1rem;
+  flex-direction: column;
+  width: 100%;
 }
 
 .action-button, .max-bet-btn {
-  flex-grow: 1;
-  padding: 1rem;
-  font-size: 1.2rem;
+  padding: 1.25rem;
+  font-size: 1.5rem;
   font-weight: 700;
   border-radius: 8px;
   border: none;
   color: white;
-  text-shadow: 0 0 5px rgba(0,0,0,0.5);
+  transition: all 0.2s ease;
 }
 
 .action-button.bet-button {
-  background: linear-gradient(180deg, #22c55e, #16a34a);
-  box-shadow: 0 0 20px #22c55e;
+  background: #00f2ff; /* Cian */
+  color: #0f172a;
+  box-shadow: 0 0 20px rgba(0, 242, 255, 0.4);
 }
 
 .action-button.cashout-button {
-  background: linear-gradient(180deg, #facc15, #eab308);
-  color: #1a202c;
-  box-shadow: 0 0 20px #facc15;
-}
-
-.max-bet-btn {
-  background: linear-gradient(180deg, #a78bfa, #7c3aed);
-  box-shadow: 0 0 20px #8b5cf6;
+  background: #ff007f; /* Magenta */
+  box-shadow: 0 0 20px rgba(255, 0, 127, 0.4);
 }
 
 .auto-cashout-controls {
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
 }
-.auto-cashout-controls label {
-  font-size: 0.8rem;
-  color: #a0aec0;
-}
-.auto-cashout-controls input {
-  background: #2d3748;
-  border: 1px solid #4a5568;
-  border-radius: 8px;
-  color: white;
-  padding: 0.5rem;
-  width: 80px;
-  text-align: center;
-  margin-left: 0.5rem;
+
+.auto-cashout-controls .input-group span {
+  padding: 0 0.75rem;
+  color: #94a3b8;
 }
 
 /* Info Panel */
 .info-panel {
-  background: #1a202c;
+  background: #1e293b;
   border-radius: 8px;
   padding: 1.5rem;
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  overflow-y: auto;
 }
 
 .info-title {
   text-align: center;
   font-size: 1.2rem;
   font-weight: 700;
-  color: #a0aec0;
-  border-bottom: 1px solid #2d3748;
+  color: #94a3b8;
+  border-bottom: 1px solid #334155;
   padding-bottom: 1rem;
 }
 
@@ -604,34 +731,20 @@ onUnmounted(() => {
   transition: transform 0.2s;
 }
 .history-item:hover {
-  transform: scale(1.1);
+  transform: scale(1.05);
 }
 
-.history-low { background-color: #4f6a7e; color: #fff; }
-.history-medium { background-color: #17a047; color: #fff; box-shadow: 0 0 10px #17a047; }
-.history-high { background-color: #e63946; color: #fff; box-shadow: 0 0 10px #e63946; }
+.history-low { background-color: #334155; color: #94a3b8; }
+.history-medium { background-color: #00f2ff; color: #0f172a; box-shadow: 0 0 10px rgba(0, 242, 255, 0.4); }
+.history-high { background-color: #ff007f; color: #fff; box-shadow: 0 0 10px rgba(255, 0, 127, 0.4); }
 
-.game-info {
-  margin-top: auto;
-  background: #0f172a;
-  border-radius: 8px;
-  padding: 1rem;
-}
-.info-item {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.9rem;
-  padding: 0.25rem 0;
-}
-.info-item span { color: #a0aec0; }
-
-.game-message { text-align: center; padding: 0.5rem; border-radius: 4px; font-weight: bold; }
-.win-message { background-color: rgba(23, 160, 71, 0.2); color: #22c55e; }
-.loss-message { background-color: rgba(255, 77, 77, 0.2); color: #ff4d4d; }
+.game-message { text-align: center; padding: 0.75rem; border-radius: 8px; font-weight: 600; margin-top: auto; }
+.win-message { background-color: rgba(0, 242, 255, 0.1); color: #00f2ff; border: 1px solid #00f2ff; }
+.loss-message { background-color: rgba(255, 0, 127, 0.1); color: #ff007f; border: 1px solid #ff007f; }
 
 /* General Button Styles */
 .btn:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
-.btn:hover:not(:disabled) { filter: brightness(1.2); }
+.btn:hover:not(:disabled) { filter: brightness(1.15); transform: translateY(-1px); }
 
 canvas {
   display: block;

@@ -1,338 +1,447 @@
 <script>
-import Juegos from './admin/juegos.vue';
-import Transaciones from './admin/transaciones.vue';
+import { balance, updateBalance } from '../store/balance.js';
 import Usuarios from './admin/usuarios.vue';
 import Blackjack from './games/Blackjack.vue';
 import Plinko from './games/plinko.vue';
 import Rocket from './games/rocket.vue';
 
 export default {
+  setup() { return { ...balance }; },
   data() {
     return {
-      showLogoutModal: false, // Controla la visibilidad del modal de logout
-      showDepositModal: false, // Controla la visibilidad del modal de depósito
-      showWithdrawModal: false // Controla la visibilidad del modal de retiro
+      showLogoutModal: false,
+      showDepositModal: false,
+      showWithdrawModal: false,
+      depositAmount: '',
+      withdrawAmount: '',
+      depositBank: '',
+      depositAccountType: '',
+      depositAccountNumber: '',
+      withdrawBank: '',
+      withdrawAccountType: '',
+      withdrawAccountNumber: '',
+      depositError: '',
+      withdrawError: '',
     };
+  },
+  computed: {
+    isDepositAccountTypeVisible() {
+      return this.depositBank === 'Bancolombia' || this.depositBank === 'Davivienda';
+    },
+    isWithdrawAccountTypeVisible() {
+      return this.withdrawBank === 'Bancolombia' || this.withdrawBank === 'Davivienda';
+    }
   },
   methods: {
     openLogoutModal() {
-      this.showLogoutModal = true; // Muestra el modal de logout
+      this.showLogoutModal = true;
     },
     closeLogoutModal() {
-      this.showLogoutModal = false; // Oculta el modal de logout
+      this.showLogoutModal = false;
     },
     logout() {
-      // Elimina la sesión y redirige al login
       localStorage.removeItem('pb:session');
-      this.$router.replace('/'); // Redirige al login
+      this.$router.replace('/');
     },
     openDepositModal() {
-      this.showDepositModal = true; // Muestra el modal de depósito
+      this.depositAmount = '';
+      this.depositBank = '';
+      this.depositAccountType = '';
+      this.depositAccountNumber = '';
+      this.depositError = '';
+      this.showDepositModal = true;
     },
     closeDepositModal() {
-      this.showDepositModal = false; // Oculta el modal de depósito
+      this.showDepositModal = false;
+    },
+    handleDepositInput(e) {
+      this.depositAmount = e.target.value.replace(/\D/g, '');
+    },
+    handleDepositAccountNumberInput(e) {
+      this.depositAccountNumber = e.target.value.replace(/\D/g, '').slice(0, 16);
+    },
+    confirmDeposit() {
+      const amount = Number(this.depositAmount);
+      if (!this.depositBank) {
+        this.depositError = "Selecciona un banco.";
+        return;
+      }
+      if (this.isDepositAccountTypeVisible && !this.depositAccountType) {
+        this.depositError = "Selecciona el tipo de cuenta.";
+        return;
+      }
+      if (!this.depositAccountNumber || this.depositAccountNumber.length < 6) {
+        this.depositError = "Ingresa un número de cuenta válido (mínimo 6 dígitos).";
+        return;
+      }
+      if (amount < 10000) {
+        this.depositError = "El monto mínimo de depósito es $10,000.";
+        return;
+      }
+      this.depositError = "";
+      updateBalance(amount);
+      alert(`¡Has depositado $${amount.toLocaleString()} con éxito!`);
+      this.closeDepositModal();
     },
     openWithdrawModal() {
-      this.showWithdrawModal = true; // Muestra el modal de retiro
+      this.withdrawAmount = '';
+      this.withdrawBank = '';
+      this.withdrawAccountType = '';
+      this.withdrawAccountNumber = '';
+      this.withdrawError = '';
+      this.showWithdrawModal = true;
     },
     closeWithdrawModal() {
-      this.showWithdrawModal = false; // Oculta el modal de retiro
+      this.showWithdrawModal = false;
     },
-    Transaciones() {
-        this.$router.push('/admin/transaciones');
-      },
-      Usuarios() {
-        this.$router.push('/admin/usuarios');
-      },
-      Juegos() {
-        this.$router.push('/admin/juegos');
-      },
-    tragaperras() {
-        this.$router.push('/slot');
-      },
-      ruleta() {
-        this.$router.push('/rulete');
-      },
-      Blackjack() {
-        this.$router.push('/BJ');
-      },
-      
-      Plinko() {
-        this.$router.push('/plinko');
-      },
-      mines() {
-        this.$router.push('/mines');
-      },
-      rocket() {
-        this.$router.push('/rocket');
+    handleWithdrawInput(e) {
+      this.withdrawAmount = e.target.value.replace(/\D/g, '');
+    },
+    handleWithdrawAccountNumberInput(e) {
+      this.withdrawAccountNumber = e.target.value.replace(/\D/g, '').slice(0, 16);
+    },
+    confirmWithdraw() {
+      const amount = Number(this.withdrawAmount);
+      if (!this.withdrawBank) {
+        this.withdrawError = "Selecciona un banco.";
+        return;
       }
+      if (this.isWithdrawAccountTypeVisible && !this.withdrawAccountType) {
+        this.withdrawError = "Selecciona el tipo de cuenta.";
+        return;
+      }
+      if (!this.withdrawAccountNumber || this.withdrawAccountNumber.length < 6) {
+        this.withdrawError = "Ingresa un número de cuenta válido (mínimo 6 dígitos).";
+        return;
+      }
+      if (amount < 20000) {
+        this.withdrawError = "El monto mínimo de retiro es $20,000.";
+        return;
+      }
+      if (amount > this.credits) {
+        this.withdrawError = "No tienes saldo suficiente para realizar este retiro.";
+        return;
+      }
+      this.withdrawError = "";
+      updateBalance(-amount);
+      alert(`¡Has retirado $${amount.toLocaleString()} con éxito!`);
+      this.closeWithdrawModal();
+    },
+    rickRoll() {
+      window.open('https://www.youtube.com/watch?v=xvFZjo5PgG0', '_blank');
+    },
+    tragaperras() {
+      this.$router.push('/slot');
+    },
+    ruleta() {
+      this.$router.push('/rulete');
+    },
+    Blackjack() {
+      this.$router.push('/BJ');
+    },
+    Usuarios() {
+      this.$router.push('/admin/usuarios');
+    },
+    Plinko() {
+      this.$router.push('/plinko');
+    },
+    mines() {
+      this.$router.push('/mines');
+    },
+    rocket() {
+      this.$router.push('/rocket');
+    }
   }
 };
 </script>
 
 <template>
-  <header class="site-header">
-    <div class="container">
-      <div class="brand">
-        <span class=""><img src="/img/Logo_PascualBet.png" alt="Logo" class="avatar"/></span>
-      </div>
-
-      <nav class="user-actions">
-        <div class="balance">
-          Saldo: <strong id="balance" data-balance="0">DEMO</strong>
+  <div class="main-container">
+    <header class="site-header">
+      <div class="container">
+        <div class="brand">
+          <span class=""><img src="/img/Logo_PascualBet.png" alt="Logo" class="avatar"/></span>
         </div>
-        <button class="btn" id="btn-deposit" data-action="open-deposit" aria-haspopup="menu"
-            aria-expanded="false"
-            @click="openDepositModal">
-          Depositar
-        </button>
-        <button class="btn" @click="openWithdrawModal">
-          Retirar
-        </button>
-        <div class="avatar-menu">
-          <button
-            class="avatar"
-            id="avatar-button"
-            aria-haspopup="menu"
-            aria-expanded="false"
-            @click="openLogoutModal"
-          >
-            <span class="avatar-fallback" id="avatar-initials">
-              <img src="https://cdn2.iconfinder.com/data/icons/pixel-characters-v2/100/avatar-09-512.png" alt="">
-            </span>
+
+        <nav class="user-actions">
+          <div class="balance">
+            Saldo: <strong id="balance">${{ credits.toFixed(2) }}</strong>
+          </div>
+          <button class="btn btn-primary" id="btn-deposit" data-action="open-deposit" aria-haspopup="menu"
+              aria-expanded="false"
+              @click="openDepositModal">
+            Depositar
+          </button>
+          <button class="btn btn-primary" @click="openWithdrawModal">
+            Retirar
+          </button>
+          <p>username</p>
+          <div class="avatar-menu">
+            <button
+              class="avatar"
+              id="avatar-button"
+              aria-haspopup="menu"
+              aria-expanded="false"
+              @click="openLogoutModal"
+            >
+              <span class="avatar-fallback" id="avatar-initials">
+                <img src="https://cdn2.iconfinder.com/data/icons/pixel-characters-v2/100/avatar-09-512.png" alt="">
+              </span>
+
+              
+            </button>
+          </div>
+        </nav>
+      </div>
+    </header>
+
+    <main class="container">
+      <!-- Tabs -->
+      <div class="tab-panel" id="panel-admin" role="tabpanel"  >
+          <h2 class="h2">Panel de Administración</h2>
+          <div class="cards-grid">
+            <article class="card">
+              <h3 class="card-title">Usuarios</h3>
+              <p class="card-text">Gestión básica de usuarios y saldos.</p>
+              <button class="btn" data-action="open-admin-users" @click="Usuarios">Abrir</button>
+            </article>
+            <article class="card">
+              <h3 class="card-title">Transacciones</h3>
+              <p class="card-text">Revisión de depósitos y retiros.</p>
+              <button class="btn" data-action="open-admin-tx">Abrir</button>
+            </article>
+            <article class="card">
+              <h3 class="card-title">juegos</h3>
+              <p class="card-text">Revisión de depósitos y retiros.</p>
+              <button class="btn" data-action="open-admin-tx">Abrir</button>
+            </article>
+          </div>
+        </div>
+
+      <!-- Paneles -->
+      <section class="tab-panels">
+        <!-- Casino -->
+        <div class="tab-panel is-active" id="panel-casino" role="tabpanel"> 
+          <h2 class="h2">Casino</h2>
+          <div class="cards-grid">
+            <article class="card game" data-game="ruleta">
+              <h3 class="card-title">Ruleta</h3>
+              <img src="/img/ruleta.png" alt="" >
+              <p class="card-text">
+                Gira y gana. Configura tu apuesta y cruza los dedos.
+              </p>
+              <button class="btn play" @click="ruleta">
+                Jugar
+              </button>
+            </article>
+
+            <article class="card game" data-game="tragamonedas">
+              <h3 class="card-title">tragamonedas</h3>
+              <img src="/img/tragamonedas.png" alt="" srcset="">
+              <p class="card-text">
+               junta 3 simbolos y veras como la mama de tus hijos de vuelvea a querrer
+              </p>
+              <button class="btn play" @click="tragaperras">
+                Jugar
+              </button>
+            </article>
+
+            <article class="card game" data-game="Blacjack">
+              <h3 class="card-title">Blacjack</h3>
+              <img src="/img/poker.png" alt="" srcset="">
+              <p class="card-text">Arma la mejor mano y vence a la mesa.</p>
+              <button class="btn play" @click="Blackjack">
+                Jugar
+              </button>
+            </article>
+
+            <article class="card game" data-game="plinko">
+              <h3 class="card-title">plinko</h3>
+              <img src="/img/plinko.jpg" alt="" >
+              <p class="card-text">
+                Tocalo y se baja solo 
+              </p>
+              <button class="btn play" @click="Plinko">
+                Jugar
+              </button>
+            </article>
+
+            <article class="card game" data-game="mines">
+              <h3 class="card-title">mines</h3>
+              <img src="/img/mines.jpg" alt="" srcset="">
+              <p class="card-text">
+                quiero ser minero romper el pico en el hierro
+              </p>
+              <button class="btn play" @click="mines">
+                Jugar
+              </button>
+            </article>
+
+            <article class="card game" data-game="rocket">
+              <h3 class="card-title">driving in my deer</h3>
+              <img src="/img/rocket.jpg" alt="" srcset="">
+              <p class="card-text">Tocalo y se sube solo</p>
+              <button class="btn play" @click="rocket">
+                Jugar
+              </button>
+            </article>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Modal Depósito -->
+    <div v-if="showDepositModal">
+      <div class="modal-overlay" @click="closeDepositModal"></div>
+      <div class="modal modal-content" role="dialog" aria-modal="true">
+        <header class="modal-header">
+          <h3>Depositar</h3>
+          <button class="icon-btn" @click="closeDepositModal" aria-label="Cerrar">✕</button>
+        </header>
+        <div class="modal-body">
+          <label class="field">
+            <span>Monto</span>
+            <input
+              type="number"
+              v-model="depositAmount"
+              @input="handleDepositInput"
+              min="10000"
+              step="1000"
+              placeholder="Monto mínimo $10,000"
+            />
+          </label>
+          <label class="field">
+            <span>Banco</span>
+            <select v-model="depositBank">
+              <option value="" disabled>Selecciona un banco</option>
+              <option value="Bancolombia">Bancolombia</option>
+              <option value="Nequi">Nequi</option>
+              <option value="Davivienda">Davivienda</option>
+            </select>
+          </label>
+          <label class="field" v-if="isDepositAccountTypeVisible">
+            <span>Tipo de cuenta</span>
+            <select v-model="depositAccountType">
+              <option value="" disabled>Selecciona el tipo</option>
+              <option value="Ahorros">Ahorros</option>
+              <option value="Corriente">Corriente</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Número de cuenta</span>
+            <input
+              type="text"
+              v-model="depositAccountNumber"
+              @input="handleDepositAccountNumberInput"
+              maxlength="16"
+              placeholder="Máximo 16 dígitos"
+            />
+          </label>
+          <small v-if="depositError" class="error">{{ depositError }}</small>
+          <button class="btn" id="confirm-deposit" @click="confirmDeposit">
+            Confirmar Depósito
           </button>
         </div>
-      </nav>
+      </div>
     </div>
-  </header>
 
-  <main class="container">
-    <!-- Tabs -->
-    <div class="tab-panel" id="panel-admin" role="tabpanel"  >
-        <h2 class="h2">Panel de Administración</h2>
-        <div class="cards-grid">
-          <article class="card">
-            <h3 class="card-title">Usuarios</h3>
-            <p class="card-text">Gestión básica de usuarios y saldos.</p>
-            <button class="btn" data-action="open-admin-users" @click="Usuarios">Abrir</button>
-          </article>
-          <article class="card">
-            <h3 class="card-title">Transacciones</h3>
-            <p class="card-text">Revisión de depósitos y retiros.</p>
-            <button class="btn" data-action="open-admin-tx"  @click="Transaciones">Abrir</button>
-          </article>
-          <article class="card">
-            <h3 class="card-title">juegos</h3>
-            <p class="card-text">Revisión de depósitos y retiros.</p>
-            <button class="btn" data-action="open-admin-tx"  @click="Juegos">Abrir</button>
-          </article>
+    <!-- Modal Retiro -->
+    <div v-if="showWithdrawModal">
+      <div class="modal-overlay" @click="closeWithdrawModal"></div>
+      <div class="modal modal-content" role="dialog" aria-modal="true">
+        <header class="modal-header">
+          <h3>Retirar</h3>
+          <button class="icon-btn" @click="closeWithdrawModal" aria-label="Cerrar">✕</button>
+        </header>
+        <div class="modal-body">
+          <label class="field">
+            <span>Monto</span>
+            <input
+              type="number"
+              v-model="withdrawAmount"
+              @input="handleWithdrawInput"
+              min="20000"
+              step="1000"
+              placeholder="Monto mínimo $20,000"
+            />
+          </label>
+          <label class="field">
+            <span>Banco</span>
+            <select v-model="withdrawBank">
+              <option value="" disabled>Selecciona un banco</option>
+              <option value="Bancolombia">Bancolombia</option>
+              <option value="Nequi">Nequi</option>
+              <option value="Davivienda">Davivienda</option>
+            </select>
+          </label>
+          <label class="field" v-if="isWithdrawAccountTypeVisible">
+            <span>Tipo de cuenta</span>
+            <select v-model="withdrawAccountType">
+              <option value="" disabled>Selecciona el tipo</option>
+              <option value="Ahorros">Ahorros</option>
+              <option value="Corriente">Corriente</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Número de cuenta</span>
+            <input
+              type="text"
+              v-model="withdrawAccountNumber"
+              @input="handleWithdrawAccountNumberInput"
+              maxlength="16"
+              placeholder="Máximo 16 dígitos"
+            />
+          </label>
+          <small v-if="withdrawError" class="error">{{ withdrawError }}</small>
+          <button class="btn" id="confirm-withdraw" @click="confirmWithdraw">
+            Confirmar Retiro
+          </button>
         </div>
       </div>
+    </div>
 
-    <!-- Paneles -->
-    <section class="tab-panels">
-      <!-- Casino -->
-      <div class="tab-panel is-active" id="panel-casino" role="tabpanel"> 
-        <h2 class="h2">Casino</h2>
-        <div class="cards-grid">
-          <article class="card game" data-game="ruleta">
-            <h3 class="card-title">Ruleta</h3>
-            <img src="/img/ruleta.png" alt="" >
-            <p class="card-text">
-              Gira y gana. Configura tu apuesta y cruza los dedos.
-            </p>
-            <button class="btn play" @click="ruleta">
-              Jugar
-            </button>
-          </article>
-
-          <article class="card game" data-game="tragamonedas">
-            <h3 class="card-title">tragamonedas</h3>
-            <img src="/img/tragamonedas.png" alt="" srcset="">
-            <p class="card-text">
-             junta 3 simbolos y veras como la mama de tus hijos de vuelvea a querrer
-            </p>
-            <button class="btn play" @click="tragaperras">
-              Jugar
-            </button>
-          </article>
-
-          <article class="card game" data-game="Blacjack">
-            <h3 class="card-title">Blacjack</h3>
-            <img src="/img/poker.png" alt="" srcset="">
-            <p class="card-text">Arma la mejor mano y vence a la mesa.</p>
-            <button class="btn play" @click="Blackjack">
-              Jugar
-            </button>
-          </article>
-
-          <article class="card game" data-game="plinko">
-            <h3 class="card-title">plinko</h3>
-            <img src="/img/plinko.jpg" alt="" >
-            <p class="card-text">
-              bolita hacer boing boing
-            </p>
-            <button class="btn play" @click="Plinko">
-              Jugar
-            </button>
-          </article>
-
-          <article class="card game" data-game="mines">
-            <h3 class="card-title">mines</h3>
-            <img src="/img/mines.jpg" alt="" srcset="">
-            <p class="card-text">
-              quiero ser minero romper el pico en el hierro
-            </p>
-            <button class="btn play" @click="mines">
-              Jugar
-            </button>
-          </article>
-
-          <article class="card game" data-game="rocket">
-            <h3 class="card-title">driving in my deer</h3>
-            <img src="/img/rocket.jpg" alt="" srcset="">
-            <p class="card-text">preguntele a su tio ludopata que es este juego</p>
-            <button class="btn play" @click="rocket">
-              Jugar
-            </button>
-          </article>
+    <!-- Modal para cerrar sesión -->
+    <div class="modal" id="logout-modal" v-if="showLogoutModal" role="dialog" aria-modal="true">
+      <div class="modal-content">
+        <header class="modal-header">
+          <h3>¿Deseas cerrar sesión?</h3>
+          <button class="icon-btn" @click="closeLogoutModal" aria-label="Cerrar">✕</button>
+        </header>
+        <div class="modal-body">
+          <p>Al cerrar sesión, todavia no alcanzaras el objetivo de ser millonario</p>
+          <img src="https://i.redd.it/iu0ms6q9sit71.jpg" alt="">
+          <button class="btn destructive" @click="logout">Cerrar sesión</button>
         </div>
       </div>
-    </section>
-  </main>
+    </div>
 
-  <!-- Modal Depósito -->
-  <div class="modal" id="modal-deposit" v-if="showDepositModal" role="dialog" aria-modal="true">
-    <div class="modal-content">
-      <header class="modal-header">
-        <h3>Depositar</h3>
-        <button
-          class="icon-btn"
-          @click="closeDepositModal"
-          aria-label="Cerrar"
-        >
-          ✕
-        </button>
-      </header>
-      <div class="modal-body">
-        <!-- Campo para seleccionar el banco -->
-        <label class="field">
-          <span>Banco de Origen</span>
-          <select id="deposit-bank" class="input">
-            <option value="bancolombia">Bancolombia</option>
-            <option value="nequi">Nequi</option>
-            <option value="davivienda">Davivienda</option>
-          </select>
-        </label>
-
-        <!-- Campo para el monto -->
-        <label class="field">
-          <span>Monto (COP)</span>
-          <input
-            type="number"
-            id="deposit-amount"
-            min="10000"
-            step="1000"
-            placeholder="10000"
-          />
-          <small class="info-text">El monto mínimo para depositar es de $10,000 COP.</small>
-        </label>
-        <button class="btn" id="confirm-deposit" data-action="confirm-deposit">
-          <a href="https://www.youtube.com/watch?v=xvFZjo5PgG0&list=RDxvFZjo5PgG0&start_radio=1" target="_blank">confirmar</a>
-        </button>
+    <footer class="site-footer">
+      <div class="container">
+        <small
+          >© <span id="year"></span> Pascualbet. Todos los derechos
+          reservados.</small>
       </div>
-    </div>
+    </footer>
   </div>
-
-  <!-- Modal Retiro -->
-  <div class="modal" id="modal-withdraw" v-if="showWithdrawModal" role="dialog" aria-modal="true">
-    <div class="modal-content">
-      <header class="modal-header">
-        <h3>Retirar</h3>
-        <button
-          class="icon-btn"
-          @click="closeWithdrawModal"
-          aria-label="Cerrar"
-        >
-          ✕
-        </button>
-      </header>
-      <div class="modal-body">
-        <!-- Campo para seleccionar el banco de destino -->
-        <label class="field">
-          <span>Banco de Destino</span>
-          <select id="withdraw-bank" class="input">
-            <option value="bancolombia">Bancolombia</option>
-            <option value="nequi">Nequi</option>
-            <option value="davivienda">Davivienda</option>
-          </select>
-        </label>
-
-        <!-- Campo para el número de cuenta -->
-        <label class="field">
-          <span>Número de Cuenta/Celular</span>
-          <input
-            type="text"
-            id="withdraw-account"
-            placeholder="Escribe tu número de cuenta o celular"
-          />
-        </label>
-
-        <!-- Campo para el monto -->
-        <label class="field">
-          <span>Monto a Retirar (COP)</span>
-          <input
-            type="number"
-            id="withdraw-amount"
-            min="20000"
-            step="1000"
-            placeholder="20000"
-          />
-          <small class="info-text">El monto mínimo para retirar es de $20,000 COP.</small>
-        </label>
-        <button
-          class="btn btn-outline"
-          id="confirm-withdraw"
-          data-action="confirm-withdraw"
-        >
-        <a href="https://www.youtube.com/watch?v=xvFZjo5PgG0&list=RDxvFZjo5PgG0&start_radio=1" target="_blank">confirmar</a>
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal para cerrar sesión -->
-  <div class="modal" id="logout-modal" v-if="showLogoutModal" role="dialog" aria-modal="true">
-    <div class="modal-content">
-      <header class="modal-header">
-        <h3>¿Deseas cerrar sesión?</h3>
-        <button class="icon-btn" @click="closeLogoutModal" aria-label="Cerrar">✕</button>
-      </header>
-      <div class="modal-body">
-        <p>Al cerrar sesión, todavia no alcanzaras el objetivo de ser millonario</p>
-        <img src="https://i.redd.it/iu0ms6q9sit71.jpg" alt="">
-        <button class="btn destructive" @click="logout">Cerrar sesión</button>
-      </div>
-    </div>
-  </div>
-
-  <footer class="site-footer">
-    <div class="container">
-      <small
-        >© <span id="year"></span> Pascualbet. Todos los derechos
-        reservados.</small>
-    </div>
-  </footer>
 </template>
 
 <style scoped>
+.main-container {
+  background-image: url('/img/fondo.png');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  min-height: 100vh;
+}
+
 .site-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 30px 20px;
-  background-color: #1a1a2e; /* Color de fondo del header */
-  color: #fff; /* Color del texto */
+  background-color: #1a1a2e;
+  color: #fff;
+  margin-bottom: 30px;
 }
 
 .brand {
@@ -342,15 +451,15 @@ export default {
 }
 
 .logo img {
-  width: 120px; /* Ajusta el tamaño del logo */
-  height: 100%; /* Mantén la proporción de la imagen */
-  object-fit: contain; /* Asegura que la imagen no se recorte */
+  width: 120px;
+  height: 100%;
+  object-fit: contain;
 }
 
 .user-actions {
   display: flex;
   align-items: center;
-  gap: 15px; /* Espaciado entre los elementos */
+  gap: 15px;
 }
 
 .balance {
@@ -365,24 +474,24 @@ export default {
   width: 100%;
   height: 90px;
   border-radius: 50%;
-  background-color: #223042; /* Fondo del avatar */
+  background-color: #223042;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff; /* Color del texto "PB" */
+  color: #fff;
   font-weight: bold;
   cursor: pointer;
 }
 
 .avatar-menu .menu {
   position: absolute;
-  top: 100px; /* Ajusta la posición del menú desplegable */
+  top: 100px;
   right: 0;
   background-color: #1a1a2e;
   border: 1px solid #223042;
   border-radius: 5px;
   padding: 10px;
-  display: none; /* Oculta el menú por defecto */
+  display: none;
 }
 
 .avatar-menu .menu-item {
@@ -392,33 +501,33 @@ export default {
 }
 
 .avatar-menu .menu-item.destructive {
-  color: #ff4d4d; /* Color para acciones destructivas */
+  color: #ff4d4d;
 }
 
 .avatar-menu:hover .menu {
-  display: block; /* Muestra el menú al pasar el mouse */
+  display: block;
 }
 
 .avatar-fallback {
-  width: 80px; /* Ajusta el tamaño del contenedor */
-  height: 80px; /* Asegúrate de que el alto sea igual al ancho */
-  border-radius: 50%; /* Hace que el borde sea completamente circular */
-  overflow: hidden; /* Oculta cualquier contenido que exceda el contenedor */
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid #223042; /* Opcional: agrega un borde */
+  border: 2px solid #223042;
 }
 
 .avatar-fallback img {
-  width: 100%; /* La imagen ocupará el 100% del ancho del contenedor */
-  height: 100%; /* La imagen ocupará el 100% de la altura del contenedor */
-  object-fit: cover; /* Asegura que la imagen se ajuste correctamente dentro del contenedor */
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .avatar-fallback img {
   width: 80%; 
-  height: 80%; /* La imagen ocupará el 100% de la altura del contenedor */
+  height: 80%;
   object-fit: cover; 
 }
 
@@ -433,6 +542,7 @@ export default {
   border-radius: 10px;
   padding: 20px;
   z-index: 1000;
+  height: max-content;
   width: 600px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
 }
@@ -447,6 +557,15 @@ export default {
   margin-top: 10px;
 }
 
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(30, 30, 46, 0.6);
+  z-index: 999;
+}
 .btn.destructive {
   background-color: #ff4d4d;
   color: #fff;
@@ -456,13 +575,14 @@ export default {
   cursor: pointer;
 }
 
-.info-text {
-  font-size: 10px;
-  color: var(--muted);
-  margin-top: 4px;
-}
-
 .btn.destructive:hover {
   background-color: #e63939;
+}
+
+.error {
+  color: #ff4d4d;
+  font-size: 13px;
+  margin-top: 8px;
+  display: block;
 }
 </style>
