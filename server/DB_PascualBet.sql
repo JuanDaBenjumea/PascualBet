@@ -9,11 +9,11 @@ drop database DB_PascualBet
 -- TABLA CUENTA USUARIO 
 -- ======================
 CREATE TABLE CuentaUsuario (
-    id_usuario VARCHAR(50) PRIMARY KEY,   -- Clave primaria
-	nombre VARCHAR(150) not null,
+    id_usuario VARCHAR(50) PRIMARY KEY,
+    nombre VARCHAR(150) NOT NULL,
     contraseña VARCHAR(255) NOT NULL,
     saldo_actual DECIMAL(12,2) DEFAULT 0,
-    rol VARCHAR(20) Default 'Usuario',
+    rol VARCHAR(20) DEFAULT 'Usuario',
     fecha_nacimiento DATETIME,
     fecha_registro DATETIME DEFAULT GETDATE()
 );
@@ -29,7 +29,7 @@ CREATE TABLE Juego (
 );
 
 -- ======================
--- TABLA APUESTA
+-- TABLA APUESTA (con CASCADE)
 -- ======================
 CREATE TABLE Apuesta (
     id_sesion INT PRIMARY KEY IDENTITY(1,1),
@@ -38,12 +38,17 @@ CREATE TABLE Apuesta (
     fecha_inicio DATETIME NOT NULL,
     fecha_fin DATETIME NULL,
     resultado VARCHAR(50) NULL,
-	monto DECIMAL(12,2)not null,
-    FOREIGN KEY (id_usuario) REFERENCES CuentaUsuario(id_usuario),
-    FOREIGN KEY (id_juego) REFERENCES Juego(id_juego)
+    monto DECIMAL(12,2) NOT NULL,
+    CONSTRAINT FK_Apuesta_Usuario 
+        FOREIGN KEY (id_usuario) REFERENCES CuentaUsuario(id_usuario)
+        ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT FK_Apuesta_Juego 
+        FOREIGN KEY (id_juego) REFERENCES Juego(id_juego)
+        ON UPDATE CASCADE ON DELETE CASCADE
 );
+
 -- ======================
--- TABLA TRANSACCION
+-- TABLA TRANSACCION (con CASCADE)
 -- ======================
 CREATE TABLE Transaccion (
     id_transaccion INT PRIMARY KEY IDENTITY(1,1),
@@ -51,35 +56,41 @@ CREATE TABLE Transaccion (
     tipo_transaccion VARCHAR(50) NOT NULL,
     monto DECIMAL(12,2) NOT NULL,
     fecha_transaccion DATETIME DEFAULT GETDATE(),
-	banco varchar(80),
-	cuenta_cliente varchar(16),
+    banco VARCHAR(80),
+    cuenta_cliente VARCHAR(16),
     estado VARCHAR(20) NOT NULL,
-    FOREIGN KEY (id_usuario) REFERENCES CuentaUsuario(id_usuario)
+    CONSTRAINT FK_Transaccion_Usuario 
+        FOREIGN KEY (id_usuario) REFERENCES CuentaUsuario(id_usuario)
+        ON UPDATE CASCADE ON DELETE CASCADE
 );
 
 -- ======================
--- TABLA HISTORIAL JUEGO
+-- TABLA HISTORIAL SESSION (con CASCADE)
 -- ======================
 CREATE TABLE HistorialSession (
     id_actividad INT PRIMARY KEY IDENTITY(1,1),
     id_usuario VARCHAR(50) NOT NULL,
     fecha_inicio DATETIME NOT NULL,
-    fecha_fin DATETIME ,
-    FOREIGN KEY (id_usuario) REFERENCES CuentaUsuario(id_usuario)
+    fecha_fin DATETIME,
+    CONSTRAINT FK_HistorialSession_Usuario 
+        FOREIGN KEY (id_usuario) REFERENCES CuentaUsuario(id_usuario)
+        ON UPDATE CASCADE ON DELETE CASCADE
 );
 
 -- ======================
--- TABLA BONIFICACION
+-- TABLA BONIFICACION (con CASCADE)
 -- ======================
 CREATE TABLE Bonificacion (
     id_bonificacion INT PRIMARY KEY IDENTITY(1,1),
-	id_usuario VARCHAR(50) NOT NULL,
+    id_usuario VARCHAR(50) NOT NULL,
     nombre VARCHAR(50) NOT NULL,
     descripcion VARCHAR(255),
     monto DECIMAL(12,2) NOT NULL,
-	estado VARCHAR(20) NOT NULL,
+    estado VARCHAR(20) NOT NULL,
     fecha DATE NOT NULL,
-	FOREIGN KEY (id_usuario) REFERENCES CuentaUsuario(id_usuario),
+    CONSTRAINT FK_Bonificacion_Usuario 
+        FOREIGN KEY (id_usuario) REFERENCES CuentaUsuario(id_usuario)
+        ON UPDATE CASCADE ON DELETE CASCADE
 );
 
 
@@ -90,6 +101,7 @@ INSERT INTO CuentaUsuario (id_usuario,nombre, contraseña, rol, saldo_actual, fe
 VALUES ('admin','andres', 'admin123', 'ADMIN', 999999.99,'2004-10-04' );
 
 select * from CuentaUsuario
+select * from Transaccion
 ---PROCEDIMIENTOS ALMACENADOS
 USE DB_PascualBet;
 GO
@@ -324,33 +336,6 @@ BEGIN
 END
 GO
 
--- Eliminar Foreign Keys existentes
-ALTER TABLE Apuesta DROP CONSTRAINT IF EXISTS FK__Apuesta__id_usua__3C69FB99;
-ALTER TABLE Transaccion DROP CONSTRAINT IF EXISTS FK__Transacci__id_us__3F466844;
-ALTER TABLE HistorialSession DROP CONSTRAINT IF EXISTS FK__Historial__id_us__4222D4EF;
-ALTER TABLE Bonificacion DROP CONSTRAINT IF EXISTS FK__Bonificac__id_us__44FF419A;
-
--- Recrear con CASCADE
-ALTER TABLE Apuesta 
-  ADD CONSTRAINT FK_Apuesta_Usuario 
-  FOREIGN KEY (id_usuario) REFERENCES CuentaUsuario(id_usuario) 
-  ON UPDATE CASCADE ON DELETE CASCADE;
-
-ALTER TABLE Transaccion 
-  ADD CONSTRAINT FK_Transaccion_Usuario 
-  FOREIGN KEY (id_usuario) REFERENCES CuentaUsuario(id_usuario) 
-  ON UPDATE CASCADE ON DELETE CASCADE;
-
-ALTER TABLE HistorialSession 
-  ADD CONSTRAINT FK_HistorialSession_Usuario 
-  FOREIGN KEY (id_usuario) REFERENCES CuentaUsuario(id_usuario) 
-  ON UPDATE CASCADE ON DELETE CASCADE;
-
-ALTER TABLE Bonificacion
-  ADD CONSTRAINT FK_BonificacionUsuario_Usuario 
-  FOREIGN KEY (id_usuario) REFERENCES CuentaUsuario(id_usuario) 
-  ON UPDATE CASCADE ON DELETE CASCADE;
-GO
 
 
 /* ========================================================================
@@ -409,7 +394,7 @@ CREATE PROCEDURE dbo.usp_Transaccion_Crear
   @monto             DECIMAL(12,2),
   @banco             VARCHAR(80) = NULL,
   @cuenta_cliente    VARCHAR(16) = NULL,
-  @estado            VARCHAR(20) = 'PENDIENTE'
+  @estado            VARCHAR(20) = 'APROBADO'
 AS
 BEGIN
   SET NOCOUNT ON;
@@ -701,6 +686,6 @@ BEGIN
   CLOSE cur;
   DEALLOCATE cur;
 END
-GO
+GO 
 
 

@@ -1,5 +1,5 @@
 <script>
-import { balance, updateBalance } from '../store/balance.js';
+import { balance, updateBalance, syncBalance } from '../store/balance.js';
 import Usuarios from './admin/usuarios.vue';
 import Blackjack from './games/Blackjack.vue';
 import Plinko from './games/plinko.vue';
@@ -7,9 +7,11 @@ import Rocket from './games/rocket.vue';
 
 export default {
   setup() { return { ...balance }; },
+  
   mounted() {
     syncBalance();
   },
+
   data() {
     return {
       showLogoutModal: false,
@@ -63,7 +65,25 @@ export default {
     handleDepositAccountNumberInput(e) {
       this.depositAccountNumber = e.target.value.replace(/\D/g, '').slice(0, 16);
     },
-    confirmDeposit() {
+    async confirmDeposit() {
+      // Helper para manejar respuestas de fetch de forma segura
+      const safeFetchJSON = async (url, options) => {
+        const response = await fetch(url, options);
+        if (!response.ok) {
+          // Si el servidor devuelve un error (4xx, 5xx), intenta leer el texto del error.
+          const errorText = await response.text();
+          try {
+            // Intenta parsear como JSON si el servidor envía un error JSON
+            const errorJson = JSON.parse(errorText);
+            throw new Error(errorJson.error || `Error del servidor: ${response.status}`);
+          } catch (e) {
+            // Si no es JSON, es probablemente una página de error HTML.
+            throw new Error(`Error del servidor: ${response.status}. La URL puede ser incorrecta.`);
+          }
+        }
+        return response.json();
+      };
+
       const amount = Number(this.depositAmount);
       if (!this.depositBank) {
         this.depositError = "Selecciona un banco.";
@@ -82,9 +102,28 @@ export default {
         return;
       }
       this.depositError = "";
-      updateBalance(amount);
-      alert(`¡Has depositado $${amount.toLocaleString()} con éxito!`);
-      this.closeDepositModal();
+
+      try {
+        // 1. Crear la transacción
+        const createData = await safeFetchJSON('http://localhost:4000/api/transaction/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            uid: this.uid,
+            tipo: 'DEPOSITO',
+            monto: amount,
+            banco: this.depositBank,
+            cuenta_cliente: this.depositAccountNumber
+          })
+        });
+        // 4. Sincronizar el saldo y notificar al usuario
+        // 3. Sincronizar el saldo y notificar al usuario
+        await syncBalance();
+        alert(`¡Has depositado $${amount.toLocaleString()} con éxito!`);
+        this.closeDepositModal();
+      } catch (error) {
+        this.depositError = error.message;
+      }
     },
     openWithdrawModal() {
       this.withdrawAmount = '';
@@ -103,7 +142,25 @@ export default {
     handleWithdrawAccountNumberInput(e) {
       this.withdrawAccountNumber = e.target.value.replace(/\D/g, '').slice(0, 16);
     },
-    confirmWithdraw() {
+    async confirmWithdraw() {
+      // Helper para manejar respuestas de fetch de forma segura
+      const safeFetchJSON = async (url, options) => {
+        const response = await fetch(url, options);
+        if (!response.ok) {
+          // Si el servidor devuelve un error (4xx, 5xx), intenta leer el texto del error.
+          const errorText = await response.text();
+          try {
+            // Intenta parsear como JSON si el servidor envía un error JSON
+            const errorJson = JSON.parse(errorText);
+            throw new Error(errorJson.error || `Error del servidor: ${response.status}`);
+          } catch (e) {
+            // Si no es JSON, es probablemente una página de error HTML.
+            throw new Error(`Error del servidor: ${response.status}. La URL puede ser incorrecta.`);
+          }
+        }
+        return response.json();
+      };
+
       const amount = Number(this.withdrawAmount);
       if (!this.withdrawBank) {
         this.withdrawError = "Selecciona un banco.";
@@ -126,12 +183,27 @@ export default {
         return;
       }
       this.withdrawError = "";
-      updateBalance(-amount);
-      alert(`¡Has retirado $${amount.toLocaleString()} con éxito!`);
-      this.closeWithdrawModal();
-    },
-    rickRoll() {
-      window.open('https://www.youtube.com/watch?v=xvFZjo5PgG0', '_blank');
+
+      try {
+        // 1. Crear la transacción de retiro
+        const createData = await safeFetchJSON('http://localhost:4000/api/transaction/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            uid: this.uid,
+            tipo: 'RETIRO',
+            monto: amount,
+            banco: this.withdrawBank,
+            cuenta_cliente: this.withdrawAccountNumber
+          })
+        });
+        // 3. Sincronizar el saldo y notificar
+        await syncBalance();
+        alert(`¡Has retirado $${amount.toLocaleString()} con éxito!`);
+        this.closeWithdrawModal();
+      } catch (error) {
+        this.withdrawError = error.message;
+      }
     },
     tragaperras() {
       this.$router.push('/slot');
@@ -178,7 +250,7 @@ export default {
           <button class="btn btn-primary" @click="openWithdrawModal">
             Retirar
           </button>
-          <p>{{ uid }}</p>
+          <p><strong id="id">{{ uid }}</strong></p>
           <div class="avatar-menu">
             <button
               class="avatar"
@@ -200,7 +272,7 @@ export default {
 
     <main class="container">
       <!-- Tabs -->
-      <div class="tab-panel" id="panel-admin" role="tabpanel"  >
+      <div v-if="rol === 'ADMIN'" class="tab-panel" id="panel-admin" role="tabpanel">
           <h2 class="h2">Panel de Administración</h2>
           <div class="cards-grid">
             <article class="card">

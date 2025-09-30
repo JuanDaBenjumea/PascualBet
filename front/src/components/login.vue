@@ -1,4 +1,6 @@
 <script>
+import { setSession, syncBalance } from '../store/balance.js';
+
 export default {
   name: "Login",
   data() {
@@ -50,9 +52,15 @@ export default {
         });
         const data = await r.json();
         if (!r.ok || !data.ok) throw new Error(data.error || 'Error de login');
-        localStorage.setItem('pb:session', JSON.stringify({
-          uid, rol: data.rol, saldo: data.saldo, dob: data.dob, ts: Date.now()
-        }));
+        const session = {
+          uid,
+          rol: data.rol,
+          saldo: data.saldo,
+          dob: data.dob,
+          ts: Date.now()
+        };
+        setSession(session); // <-- Actualiza el store y localStorage
+        await syncBalance(); // <-- Sincroniza el saldo desde la base de datos
         this.$router.push("/menu");
       } catch (err) {
         this.toast(err.message);

@@ -274,36 +274,25 @@ app.post('/api/transaction/create', async (req, res) => {
   const { uid, tipo, monto, banco, cuenta_cliente } = req.body || {};
   if (!uid || !tipo || typeof monto !== 'number') return res.status(400).json({ ok:false, error: 'Datos requeridos' });
   try {
-    await query(`EXEC dbo.usp_Transaccion_Crear @id_usuario=@uid, @tipo_transaccion=@tipo, @monto=@monto, @banco=@banco, @cuenta_cliente=@cuenta_cliente`, [
+    const result = await query(`EXEC dbo.usp_Transaccion_Crear @id_usuario=@uid, @tipo_transaccion=@tipo, @monto=@monto, @banco=@banco, @cuenta_cliente=@cuenta_cliente`, [
       { name:'uid', type: sql.VarChar(50), value: uid },
       { name:'tipo', type: sql.VarChar(50), value: tipo },
       { name:'monto', type: sql.Decimal(12,2), value: monto },
       { name:'banco', type: sql.VarChar(50), value: banco || null },
       { name:'cuenta_cliente', type: sql.VarChar(16), value: cuenta_cliente || null }
     ]);
-    res.json({ ok:true });
+    // El SP devuelve el ID de la transacción creada, lo retornamos al frontend.
+    const id_transaccion = result.recordset[0].id_transaccion;
+    res.json({ ok:true, id_transaccion });
   } catch (e) {
     res.status(500).json({ ok:false, error: e.message });
   }
 });
 
 /**
- * POST /api/transaction/approve
- * body: { id_transaccion }
- * Llama a usp_Transaccion_Aprobar
+ * GET /api/transaction/latest/:uid
+ * Obtiene el ID de la última transacción PENDIENTE para un usuario.
  */
-app.post('/api/transaction/approve', async (req, res) => {
-  const { id_transaccion } = req.body || {};
-  if (!id_transaccion) return res.status(400).json({ ok:false, error: 'id_transaccion requerido' });
-  try {
-    await query(`EXEC dbo.usp_Transaccion_Aprobar @id_transaccion=@id_transaccion`, [
-      { name:'id_transaccion', type: sql.Int, value: id_transaccion }
-    ]);
-    res.json({ ok:true });
-  } catch (e) {
-    res.status(500).json({ ok:false, error: e.message });
-  }
-});
 
 /**
  * POST /api/bet/create

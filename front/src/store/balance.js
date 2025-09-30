@@ -18,10 +18,21 @@ const getInitialBalance = () => {
   return 0;
 };
 
-// Creamos un estado reactivo para el saldo y el uid.
+// Función para obtener la sesión parseada de forma segura
+const getSession = () => {
+  const session = localStorage.getItem('pb:session');
+  try {
+    return session ? JSON.parse(session) : {};
+  } catch (e) {
+    return {};
+  }
+};
+
+// Creamos un estado reactivo para los datos de la sesión del usuario.
 const state = reactive({
   credits: getInitialBalance(),
-  uid: localStorage.getItem('pb:session') ? JSON.parse(localStorage.getItem('pb:session')).uid : ''
+  uid: getSession().uid || '',
+  rol: getSession().rol || 'Usuario' // Añadimos el rol al estado
 });
 
 // Nueva función para sincronizar saldo desde la base de datos
@@ -41,6 +52,14 @@ export const syncBalance = async () => {
   } catch (e) {
     console.error("Error al sincronizar saldo:", e);
   }
+};
+
+export const setSession = (session) => {
+  // Actualiza el estado reactivo con los datos del nuevo usuario
+  state.uid = session.uid;
+  state.rol = session.rol; // Guardamos el rol en el estado
+  state.credits = Number(session.saldo) || 0;
+  localStorage.setItem('pb:session', JSON.stringify(session));
 };
 
 // Función para actualizar el saldo. Acepta montos positivos (ganancias) y negativos (pérdidas).
