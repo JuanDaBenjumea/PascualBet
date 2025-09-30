@@ -510,7 +510,7 @@ IF OBJECT_ID('dbo.usp_Apuesta_Crear','P') IS NOT NULL
   DROP PROCEDURE dbo.usp_Apuesta_Crear;
 GO
 
-alter PROCEDURE dbo.usp_Apuesta_Crear
+CREATE PROCEDURE dbo.usp_Apuesta_Crear
   @id_usuario  VARCHAR(50),
   @id_juego    INT,
   @monto       DECIMAL(12,2),
@@ -554,6 +554,22 @@ BEGIN
     -- Insertar apuesta
     INSERT INTO dbo.Apuesta (id_usuario, id_juego, fecha_inicio,fecha_fin,resultado, monto)
     VALUES (@id_usuario, @id_juego, GETDATE(),GETDATE(),@resultado, @monto);
+	-- Si ganó, sumar el premio
+
+    IF @resultado = 'GANADO'
+    BEGIN
+      SET @premio = @monto * @multiplicador;
+      
+      UPDATE dbo.CuentaUsuario
+      SET saldo_actual = saldo_actual + @premio
+      WHERE id_usuario = @id_usuario;
+      
+      SELECT 'Apuesta finalizada - GANASTE!' AS Mensaje, @premio AS Premio;
+    END
+    ELSE
+    BEGIN
+      SELECT 'Apuesta finalizada - Perdiste' AS Mensaje, 0 AS Premio;
+    END
     
     COMMIT TRANSACTION;
     SELECT SCOPE_IDENTITY() AS id_sesion, 'Apuesta creada exitosamente' AS Mensaje;
@@ -658,7 +674,7 @@ IF OBJECT_ID('dbo.trg_CuentaUsuario_BonificacionBienvenida','TR') IS NOT NULL
   DROP TRIGGER dbo.trg_CuentaUsuario_BonificacionBienvenida;
 GO
 
-CREATE TRIGGER dbo.trg_CuentaUsuario_BonificacionBienvenida
+create TRIGGER dbo.trg_CuentaUsuario_BonificacionBienvenida
 ON dbo.CuentaUsuario
 AFTER INSERT
 AS
@@ -666,7 +682,7 @@ BEGIN
   SET NOCOUNT ON;
   
   DECLARE @id_usuario VARCHAR(50);
-  DECLARE @monto_bono DECIMAL(12,2) = 10000.00;
+  DECLARE @monto_bono DECIMAL(12,2) = 10.00;
   
   -- Cursor para procesar cada usuario nuevo insertado
   DECLARE cur CURSOR FOR

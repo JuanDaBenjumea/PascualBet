@@ -164,7 +164,7 @@
 </template>
 
 <script>
-import { balance, updateBalance } from '../../store/balance.js';
+import { balance, syncBalance } from '../../store/balance.js';
 export default {
   name: 'SlotMachine',
   setup() {
@@ -411,7 +411,7 @@ export default {
       ctx.fillText(symbol, x, y);
     },
 
-    animateReels() {
+    async animateReels() {
       if (!this.spinning) return;
       const elapsed = Date.now() - this.spinStartTime;
       const progress = Math.min(elapsed / this.spinDuration, 1);
@@ -455,7 +455,7 @@ export default {
         this.reelAnimations = [0, 0, 0];
         this.reels = [...this.targetSymbols];
         this.drawSlotMachine();
-        this.checkWin();
+        await this.checkWin();
       }
     },
 
@@ -475,7 +475,6 @@ export default {
       }
 
       this.spinning = true;
-      updateBalance(-this.currentBet);
       this.lastWin = 0;
       this.winMessage = '';
 
@@ -505,27 +504,41 @@ export default {
       this.animateReels();
     },
 
-    checkWin() {
+    async checkWin() {
       const combination = this.reels.join(' ');
       const payout = this.paytable[combination];
+      let resultado = 'PERDIDO';
+      let multiplicador = 0;
 
       if (payout) {
-        this.lastWin = this.currentBet * payout;
-        updateBalance(this.lastWin);
+        resultado = 'GANADO';
+        multiplicador = payout;
+        this.lastWin = this.currentBet * multiplicador;
         this.winMessage = `¡${combination}!`;
       } else {
         // Check for any two matching symbols (smaller payout)
         const counts = {};
-        this.reels.forEach(symbol => {
-          counts[symbol] = (counts[symbol] || 0) + 1;
-        });
+        this.reels.forEach(symbol => { counts[symbol] = (counts[symbol] || 0) + 1; });
 
         const pairs = Object.entries(counts).filter(([symbol, count]) => count >= 2);
         if (pairs.length > 0) {
-          this.lastWin = Math.floor(this.currentBet * 0.5);
-          updateBalance(this.lastWin);
+          resultado = 'GANADO';
+          multiplicador = 0.5;
+          this.lastWin = Math.floor(this.currentBet * multiplicador);
           this.winMessage = '¡Par ganador!';
         }
+      }
+
+      // Llamada única a la API al final de la jugada
+      try {
+        await fetch('http://localhost:4000/api/bet/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ uid: this.uid, id_juego: 2, monto: this.currentBet, resultado, multiplicador })
+        });
+        await syncBalance();
+      } catch (error) {
+        alert(`Error al registrar la apuesta: ${error.message}`);
       }
     },
 

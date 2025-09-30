@@ -103,11 +103,12 @@
 import { ref, onMounted, onUnmounted, computed, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import * as Tone from 'tone';
-// Importa el saldo global y la función para actualizarlo
-import { balance, updateBalance } from '../../store/balance.js';
+// Importa el saldo global y las funciones de sincronización
+import { balance, syncBalance } from '../../store/balance.js';
 
 // --- State ---
 // Usar el saldo global reactivo
+const { uid } = balance;
 const credits = balance.credits;
 const betAmount = ref(10);
 const betStep = 5;
@@ -120,6 +121,7 @@ const history = ref([]);
 const countdown = ref(5000);
 const gameMessage = ref('');
 const milestoneReached = ref(false);
+const currentBetId = ref(null); // No se usa con el nuevo SP, pero lo dejamos por si acaso
 const router = useRouter();
 
 // --- Dev & Testing ---
@@ -175,23 +177,27 @@ const messageClass = computed(() => {
 });
 
 // --- Game Logic ---
-function handleAction() {
+async function handleAction() {
   if (buttonDisabled.value) return;
   if (gameState.value === 'running') {
     cashOut(currentMultiplier.value);
-    // playSound('cashout');
   } else if (gameState.value === 'waiting' || gameState.value === 'starting') {
     if (credits.value < betAmount.value) return;
-    updateBalance(-betAmount.value); // Descuenta del saldo global
+    // La apuesta se registrará al final, aquí solo marcamos que el jugador participa.
     hasPlacedBet.value = true;
   }
 }
 
-function cashOut(multiplier) {
-  if (!hasCashedOut.value) {
+async function cashOut(multiplier) {
+  if (hasPlacedBet.value && !hasCashedOut.value) {
     hasCashedOut.value = true;
-    const winnings = betAmount.value * (multiplier > 0 ? multiplier : 1);
-    updateBalance(winnings); // Suma al saldo global
+    const winnings = betAmount.value * multiplier;
+    await fetch('http://localhost:4000/api/bet/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uid: uid.value, id_juego: 6, monto: betAmount.value, resultado: 'GANADO', multiplicador: multiplier })
+    });
+    await syncBalance();
     gameMessage.value = `¡Ganaste $${winnings.toFixed(2)}!`;
   }
 }
@@ -271,7 +277,7 @@ onMounted(() => {
   }).toDestination();
 });
 
-function endGame() {
+async function endGame() {
   gameState.value = 'crashed';
   currentMultiplier.value = crashPoint;
 
@@ -289,8 +295,13 @@ function endGame() {
   }
 
   if (hasPlacedBet.value && !hasCashedOut.value) {
-    gameMessage.value = `¡Crash! Perdiste $${betAmount.value}.`;
-    // No es necesario descontar aquí porque ya se descontó al apostar
+    gameMessage.value = `¡Crash! Perdiste $${betAmount.value.toFixed(2)}.`;
+    await fetch('http://localhost:4000/api/bet/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uid: uid.value, id_juego: 6, monto: betAmount.value, resultado: 'PERDIDO', multiplicador: 0 })
+    });
+    await syncBalance();
   }
 }
 

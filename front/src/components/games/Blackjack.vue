@@ -166,7 +166,7 @@
 </template>
 
 <script>
-import { balance, updateBalance } from '../../store/balance.js';
+import { balance, syncBalance } from '../../store/balance.js';
 export default {
   setup() {
     return { ...balance };
@@ -183,6 +183,7 @@ export default {
       predefinedAmounts: [10, 20, 50, 100],
       resultMessage: "",
       showHelpModal: false,
+      currentBetId: null, // No se usa con el nuevo SP, pero lo dejamos por si acaso
     };
   },
   computed: {
@@ -234,20 +235,19 @@ export default {
     }
   },
   methods: {
-    startGame() {
+    async startGame() {
       // Validar apuesta antes de iniciar
       if (this.betAmount < 10) {
         alert("La apuesta mínima es de $10.");
         return;
       }
 
-      // Validar créditos suficientes
       if (this.betAmount > this.credits) {
         alert("No tienes suficientes créditos para esta apuesta.");
         return;
       }
 
-      if (this.betAmount < 10) return; // Asegúrate de que la apuesta sea válida
+      // La llamada a la API se hará al final del juego, no al inicio.
       this.deck = this.createDeck();
       this.shuffleDeck(this.deck);
       this.playerCards = [this.drawCard(), this.drawCard()];
@@ -255,25 +255,20 @@ export default {
       this.playerTurn = true;
       this.gameOver = false;
       this.gameStarted = true;
-      updateBalance(-this.betAmount); // Restar la apuesta del balance
       this.resultMessage = "";
-      // Sonido de repartir cartas
+
       if (window.Tone && this.cardSynth) {
         window.Tone.start && window.Tone.start();
         this.cardSynth.triggerAttackRelease('8n');
       }
 
-      // Comprobar si el jugador tiene Blackjack (21) al inicio
       if (this.playerScore === 21) {
-        this.playerTurn = false; // El turno del jugador termina
-        // Comprobar si el crupier también tiene Blackjack para un empate
+        this.playerTurn = false;
         if (this.dealerScore === 21) {
-          updateBalance(this.betAmount); // Devolver la apuesta
-          this.endGame("¡Empate! Ambos tienen Blackjack.");
+          await this.endGame("¡Empate! Ambos tienen Blackjack.", 'EMPATE', 1);
         } else {
-          const winnings = this.betAmount * 2.5; // Pago 3:2 por Blackjack
-          updateBalance(winnings);
-          this.endGame(`¡Blackjack! Ganaste $${winnings.toFixed(2)}`);
+          const winnings = this.betAmount * 1.5;
+          await this.endGame(`¡Blackjack! Ganaste $${winnings.toFixed(2)}`, 'GANADO', 2.5);
         }
       }
     },
@@ -355,32 +350,38 @@ export default {
       if (this.gameOver) return;
       this.playerCards.push(this.drawCard());
       if (this.playerScore > 21) {
-        this.endGame("¡Te pasaste! El crupier gana.");
+        this.endGame("¡Te pasaste! El crupier gana.", 'PERDIDO', 0);
       } else if (this.playerScore === 21) {
         // Si el jugador llega a 21, su turno termina y se pasa al crupier.
         this.stand();
       }
     },
-    stand() {
+    async stand() {
       if (this.gameOver) return;
       this.playerTurn = false;
       while (this.dealerScore < 17) {
         this.dealerCards.push(this.drawCard());
       }
       if (this.dealerScore > 21 || this.playerScore > this.dealerScore) {
-        const winnings = this.betAmount * 2;
-        updateBalance(winnings);
-        this.endGame(`¡Ganaste! (+$${winnings})`);
+        const winnings = this.betAmount;
+        await this.endGame(`¡Ganaste! (+$${winnings.toFixed(2)})`, 'GANADO', 2);
       } else if (this.playerScore < this.dealerScore) {
-        this.endGame("El crupier gana.");
+        await this.endGame("El crupier gana.", 'PERDIDO', 0);
       } else {
-        updateBalance(this.betAmount); // Devolver la apuesta en caso de empate
-        this.endGame("Es un empate.");
+        await this.endGame("Es un empate.", 'EMPATE', 1);
       }
     },
-    endGame(message) {
+    async endGame(message, resultado, multiplicador) {
       this.gameOver = true;
       this.resultMessage = message;
+
+      await fetch('http://localhost:4000/api/bet/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid: this.uid, id_juego: 3, monto: this.betAmount, resultado, multiplicador })
+      });
+      await syncBalance();
+
       // Sonido según resultado
       if (window.Tone) {
         if (message.includes('Ganaste')) {

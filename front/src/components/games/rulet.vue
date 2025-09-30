@@ -585,8 +585,8 @@ export default {
       
       this.lastWin = totalWin > 0 ? totalWin - this.totalBet : 0; // Ganancia neta
 
-      // Con el nuevo SP, creamos y finalizamos la apuesta en un solo paso.
-      const betResult = totalWin > 0 ? 'GANADO' : 'PERDIDO';
+      // Con el nuevo SP, creamos y finalizamos la apuesta en un solo paso
+      const betResult = totalWin > this.totalBet ? 'GANADO' : (totalWin === this.totalBet ? 'EMPATE' : 'PERDIDO');
 
       try {
         const res = await fetch('http://localhost:4000/api/bet/create', {
@@ -594,14 +594,14 @@ export default {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             uid: this.uid,
-            id_juego: 1,
+            id_juego: 1, // ID para Ruleta
             monto: this.totalBet,
             resultado: betResult,
             multiplicador: highestMultiplier
           })
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Error al registrar la apuesta');
+        if (!res.ok) throw new Error(data.error || 'Error al registrar la apuesta.');
         // No necesitamos guardar el id_sesion porque ya no hay un segundo paso.
       } catch (error) {
         alert(`Error: ${error.message}`);

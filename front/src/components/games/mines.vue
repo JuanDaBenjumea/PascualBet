@@ -185,37 +185,11 @@ watch(gridDimension, () => {
   grid.value = initializeGrid();
 });
 
-async function startGame() {
+function startGame() {
   if (betAmount.value <= 0) {
     alert("Please enter a bet amount greater than zero.");
     return;
   }
-  if (betAmount.value > credits.value) {
-    alert("No tienes suficientes créditos para esta apuesta.");
-    alert("No tienes saldo suficiente para esta apuesta.");
-    return;
-  }
-
-  // 1. Crear la apuesta en el backend
-  try {
-    const res = await fetch('http://localhost:4000/api/bet/create', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        uid: uid.value,
-        id_juego: 5, // ID para Minas
-        monto: betAmount.value
-      })
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Error al crear la apuesta');
-    currentBetId.value = data.id_sesion;
-    await syncBalance(); // Sincronizar saldo después del descuento
-  } catch (error) {
-    alert(`Error: ${error.message}`);
-    return;
-  }
-
   gameState.value = 'playing';
   diamondsFound.value = 0;
   
@@ -244,11 +218,11 @@ async function onTileClick(index) {
     gameState.value = 'busted';
     revealAllMines();
 
-    // 2. Finalizar la apuesta como PERDIDA
-    await fetch('http://localhost:4000/api/bet/finalize', {
+    // Finalizar la apuesta como PERDIDA en un solo paso
+    await fetch('http://localhost:4000/api/bet/create', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id_sesion: currentBetId.value, resultado: 'PERDIDO', multiplicador: 0 })
+      body: JSON.stringify({ uid: uid.value, id_juego: 5, monto: betAmount.value, resultado: 'PERDIDO', multiplicador: 0 })
     });
     await syncBalance();
 
@@ -274,11 +248,11 @@ async function cashout() {
   const winnings = betAmount.value * currentMultiplier.value;
   const multiplier = currentMultiplier.value;
 
-  // 2. Finalizar la apuesta como GANADA
-  await fetch('http://localhost:4000/api/bet/finalize', {
+  // Finalizar la apuesta como GANADA en un solo paso
+  await fetch('http://localhost:4000/api/bet/create', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id_sesion: currentBetId.value, resultado: 'GANADO', multiplicador: multiplier })
+    body: JSON.stringify({ uid: uid.value, id_juego: 5, monto: betAmount.value, resultado: 'GANADO', multiplicador: multiplier })
   });
   await syncBalance();
 

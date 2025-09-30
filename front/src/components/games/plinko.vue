@@ -235,7 +235,7 @@ function adjustMultipliersForER(probabilities, targetER, baseMultipliers = null)
 export default {
   name: "Plinko",
   setup() {
-    const router = useRouter();
+    const { uid } = balance;
 
     function goBack() {
       router.push('/menu');
@@ -252,6 +252,7 @@ export default {
     
     // --- Estado del Juego ---
     const gameMode = ref('manual'); // 'manual', 'auto'
+    const router = useRouter();
     const betAmount = ref(10);
     const riskLevel = ref("medium"); // 'low', 'medium', 'high'
     const ballsPerBet = ref(1);
@@ -385,12 +386,10 @@ export default {
         stopAutoBetting();
       } else if (gameMode.value === 'manual') {
         if (balance.credits.value >= betAmount.value * ballsPerBet.value) {
-          clickSynth.triggerAttackRelease('8n');
-          updateBalance(-betAmount.value * ballsPerBet.value);
           startManualDrop();
         }
       } else if (gameMode.value === 'auto') {
-        startAutoBetting();
+        startAutoBetting(); // La validación de saldo se hace en el loop
       }
     }
 
@@ -401,22 +400,16 @@ export default {
         stopAutoBetting();
         return;
       }
-      if (balance.credits.value >= betAmount.value * ballsPerBet.value) {
-        updateBalance(-betAmount.value * ballsPerBet.value);
+      const totalCost = betAmount.value * ballsPerBet.value;
+      if (balance.credits.value >= totalCost) {
         await playRound();
         betsPlayed.value++;
         setTimeout(autoBetLoop, 500);
       } else {
+        alert("Saldo insuficiente para continuar el auto-bet.");
         stopAutoBetting();
       }
     }
-
-    // Sumar solo la ganancia neta al finalizar la ronda
-    watch(totalWinThisRound, (newVal) => {
-      if (newVal !== null && newVal > 0) {
-        updateBalance(newVal);
-      }
-    });
 
     // --- Geometría del Tablero (Computadas) ---
     const pegs = computed(() => {
@@ -495,12 +488,27 @@ export default {
         return;
       }
 
+      if (balance.credits.value < totalCost) {
+        alert("Saldo insuficiente.");
+        return;
+      }
+
+      clickSynth.triggerAttackRelease('8n');
+
       gameState.value = 'dropping';
       totalWinThisRound.value = 0;
 
       for (let i = 0; i < ballsPerBet.value; i++) {
-        const win = await dropSingleBall(i);
-        totalWinThisRound.value += win;
+        const { win, multiplier } = await dropSingleBall(i);
+        const resultado = win > 0 ? 'GANADO' : 'PERDIDO';
+
+        await fetch('http://localhost:4000/api/bet/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ uid: uid.value, id_juego: 4, monto: betAmount.value, resultado, multiplicador: multiplier })
+        });
+        await syncBalance();
+
         // Pequeña pausa entre bolas si hay más de una
         if (ballsPerBet.value > 1 && i < ballsPerBet.value - 1) {
           await new Promise(resolve => setTimeout(resolve, 200));
@@ -508,6 +516,7 @@ export default {
       }
 
       gameState.value = 'betting';
+      totalWinThisRound.value = null; // Limpiar mensaje para la siguiente ronda
     }
 
     function animate() {
@@ -583,9 +592,11 @@ export default {
             }, 500); // Duración de la animación
             
             if (winningBucket) {
-              resolve(betAmount.value * winningBucket.multiplier);
+              const winAmount = betAmount.value * winningBucket.multiplier;
+              totalWinThisRound.value += winAmount;
+              resolve({ win: winAmount, multiplier: winningBucket.multiplier });
             } else {
-              resolve(0); // Cayó fuera
+              resolve({ win: 0, multiplier: 0 }); // Cayó fuera
             }
           } else {
             requestAnimationFrame(checkEnd);
