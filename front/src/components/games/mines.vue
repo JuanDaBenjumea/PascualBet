@@ -65,7 +65,8 @@
             Cashout ({{ currentMultiplier.toFixed(2) }}x)
           </button>
           <div v-if="gameState === 'busted'" class="game-over-message">
-            ¡Has perdido!
+            <span v-if="isCashedOut" class="win-message-color">¡Has ganado!</span>
+            <span v-else>¡Has perdido!</span>
             <button class="action-button bet-button" @click="resetGame">
               Jugar de nuevo
             </button>
@@ -80,16 +81,15 @@
             class="tile"
             :class="{
               revealed: tile.isRevealed,
-              mine: tile.isRevealed && tile.isMine,
+              mine: (tile.isRevealed && tile.isMine) || (isCashedOut && tile.isMine),
               diamond: tile.isRevealed && !tile.isMine,
               'game-over': gameState === 'busted'
             }"
             @click="onTileClick(index)"
           >
             <div class="tile-content">
-              <!-- El contenido se muestra con ::before para la animación -->
               <span v-if="tile.isRevealed && !tile.isMine">💎</span>
-              <span v-if="tile.isRevealed && tile.isMine">💣</span>
+              <span v-if="(tile.isRevealed && tile.isMine) || (isCashedOut && tile.isMine)">💣</span>
             </div>
           </div>
         </div>
@@ -112,6 +112,7 @@ const gridDimension = ref(5); // 5 for 5x5, 3 for 3x3, etc.
 const betAmount = ref(10.00);
 const numMines = ref(3);
 const gameState = ref('betting'); // 'betting', 'playing', 'busted'
+const isCashedOut = ref(false);
 const diamondsFound = ref(0);
 // Usar el saldo global reactivo
 const { uid } = balance;
@@ -259,14 +260,15 @@ async function cashout() {
   // Sonido de cashout alegre
   cashoutSynth.triggerAttackRelease(['C6', 'E6', 'G6'], '8n');
   lastWinnings.value = winnings - betAmount.value; // Mostrar ganancia neta
-  gameState.value = 'betting';
-  grid.value = initializeGrid();
+  
+  isCashedOut.value = true;
+  gameState.value = 'busted'; // Reutilizamos el estado 'busted' para mostrar el tablero final
   diamondsFound.value = 0;
-  // No borramos lastWinnings aquí
 }
 
 function resetGame() {
   gameState.value = 'betting';
+  isCashedOut.value = false;
   grid.value = initializeGrid();
   // No borramos lastWinnings aquí
 }
@@ -471,6 +473,9 @@ input:focus, select:focus {
   text-align: center;
   color: #f87171;
   font-weight: bold;
+}
+.win-message-color {
+  color: #22c55e;
 }
 .game-over-message .action-button {
   margin-top: 1rem;

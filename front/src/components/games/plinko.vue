@@ -115,7 +115,7 @@
 <script>
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from "vue";
 import { useRouter } from 'vue-router';
-import { balance, updateBalance } from '../../store/balance.js';
+import { balance, updateBalance, syncBalance } from '../../store/balance.js';
 import * as Tone from 'tone';
 
 // --- Funciones de Lógica y Probabilidad (integradas desde plinko-logic.js) ---
@@ -493,33 +493,72 @@ export default {
         return;
       }
 
-      clickSynth.triggerAttackRelease('8n');
-
       gameState.value = 'dropping';
       totalWinThisRound.value = 0;
+      clickSynth.triggerAttackRelease('8n');
 
-      for (let i = 0; i < ballsPerBet.value; i++) {
-        const { win, multiplier } = await dropSingleBall(i);
-        const resultado = win > 0 ? 'GANADO' : 'PERDIDO';
+      try {
+        for (let i = 0; i < ballsPerBet.value; i++) {
+          const { win, multiplier } = await dropSingleBall(i);
+          const resultado = win > 0 ? 'GANADO' : 'PERDIDO';
 
-        await fetch('http://localhost:4000/api/bet/create', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ uid: uid.value, id_juego: 4, monto: betAmount.value, resultado, multiplicador: multiplier })
-        });
-        await syncBalance();
+          try {
+            await fetch('http://localhost:4000/api/bet/create', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ uid: uid.value, id_juego: 4, monto: betAmount.value, resultado, multiplicador })
+            });
+            await syncBalance();
+          } catch (error) {
+            console.error("Error communicating with the server during bet:", error);
+          }
 
-        // Pequeña pausa entre bolas si hay más de una
-        if (ballsPerBet.value > 1 && i < ballsPerBet.value - 1) {
-          await new Promise(resolve => setTimeout(resolve, 200));
+          if (ballsPerBet.value > 1 && i < ballsPerBet.value - 1) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+          }
         }
+      } catch (error) {
+        console.error("An error occurred during the Plinko round:", error);
+      } finally {
+        gameState.value = 'betting';
+        setTimeout(() => {
+          totalWinThisRound.value = null;
+        }, 3000);
       }
-
-      gameState.value = 'betting';
-      totalWinThisRound.value = null; // Limpiar mensaje para la siguiente ronda
     }
 
-    function animate() {
+    function animate(resolve, startTime) {
+      const elapsedTime = Date.now() - startTime;
+      if (elapsedTime > 10000) { // 10 segundos de tiempo de espera
+        console.warn(`La bola de Plinko ${ball.id} ha superado el tiempo de espera y ha sido eliminada.`);
+        ball.visible = false;
+        resolve({ win: 0, multiplier: 0 }); // Resuelve como una pérdida
+        return; // Detiene el bucle de animación
+      }
+
+      // Comprobar si ha llegado al fondo ANTES de la siguiente animación
+      if (ball.y > boardHeight.value - bucketHeight - ballRadius) {
+        ball.visible = false;
+
+        const bucketIndex = Math.floor(ball.x / bucketWidth.value);
+        const winningBucket = buckets.value[bucketIndex];
+
+        // Animar el cubo ganador
+        lastHitBucketIndex.value = bucketIndex;
+        setTimeout(() => {
+          if (lastHitBucketIndex.value === bucketIndex) lastHitBucketIndex.value = null;
+        }, 500);
+
+        if (winningBucket) {
+          const winAmount = betAmount.value * winningBucket.multiplier;
+          totalWinThisRound.value += winAmount;
+          resolve({ win: winAmount, multiplier: winningBucket.multiplier });
+        } else {
+          resolve({ win: 0, multiplier: 0 }); // Cayó fuera
+        }
+        return; // Detener el bucle de animación
+      }
+
       // Aplicar gravedad
       ball.vy += 0.15;
 
@@ -533,42 +572,32 @@ export default {
         const dy = ball.y - peg.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
 
-        // Lógica para la estela
-        if (distance < ballRadius + pegRadius && !hitPegs.has(peg.id)) {
-          hitPegs.add(peg.id);
-          setTimeout(() => {
-            hitPegs.delete(peg.id);
-          }, 300); // La estela dura 300ms
-          // Sonido de nota según el bucket más cercano
-          // Buscar el bucket más cercano en X
-          const bucketIdx = Math.round(peg.x / bucketWidth.value);
-          if (notesArr[bucketIdx]) notesArr[bucketIdx].play();
-        }
-
         if (distance < ballRadius + pegRadius) {
-          // Colisión detectada, aplicar rebote
-          ball.vy *= -0.4; // Rebote vertical
-          ball.vx = (dx / distance) * 2.5 + (Math.random() - 0.5); // Rebote basado en ángulo
+          if (!hitPegs.has(peg.id)) {
+            hitPegs.add(peg.id);
+            setTimeout(() => hitPegs.delete(peg.id), 300);
+            
+            const bucketIdx = Math.round(peg.x / bucketWidth.value);
+            if (notesArr[bucketIdx]) notesArr[bucketIdx].play();
+          }
+          
+          ball.vy *= -0.4;
+          ball.vx = (dx / distance) * 2.5 + (Math.random() - 0.5);
         }
       }
 
       // Detección de colisión con paredes
       if (ball.x < ballRadius || ball.x > boardWidth.value - ballRadius) {
-        ball.vx *= -0.8; // Rebotar en las paredes
+        ball.vx *= -0.8;
       }
 
-      // Comprobar si ha llegado al fondo
-      if (ball.y > boardHeight.value - bucketHeight - ballRadius) {
-        // La promesa se resolverá en dropSingleBall
-        return; 
-      }
-
-      animationFrameId = requestAnimationFrame(animate);
+      animationFrameId = requestAnimationFrame(() => animate(resolve, startTime));
     }
 
     function dropSingleBall(id) {
       return new Promise(resolve => {
-        hitPegs.clear(); // Limpiar estelas de la bola anterior
+        const startTime = Date.now();
+        hitPegs.clear();
         ball.id = id;
         ball.x = boardWidth.value / 2 + (Math.random() - 0.5) * 10;
         ball.y = 20;
@@ -576,35 +605,12 @@ export default {
         ball.vy = 0;
         ball.visible = true;
 
-        const checkEnd = () => {
-          if (ball.y > boardHeight.value - bucketHeight - ballRadius) {
-            cancelAnimationFrame(animationFrameId);
-            ball.visible = false;
-
-            const bucketIndex = Math.floor(ball.x / bucketWidth.value);
-            const winningBucket = buckets.value[bucketIndex];
-
-            // Animar el cubo ganador
-            lastHitBucketIndex.value = bucketIndex;
-            setTimeout(() => {
-              // Solo limpiar si no ha sido presionado otro cubo mientras tanto
-              if (lastHitBucketIndex.value === bucketIndex) lastHitBucketIndex.value = null;
-            }, 500); // Duración de la animación
-            
-            if (winningBucket) {
-              const winAmount = betAmount.value * winningBucket.multiplier;
-              totalWinThisRound.value += winAmount;
-              resolve({ win: winAmount, multiplier: winningBucket.multiplier });
-            } else {
-              resolve({ win: 0, multiplier: 0 }); // Cayó fuera
-            }
-          } else {
-            requestAnimationFrame(checkEnd);
-          }
-        };
-
-        animate();
-        checkEnd();
+        // Cancelar cualquier frame de animación anterior para evitar bucles fantasma
+        if (animationFrameId) {
+          cancelAnimationFrame(animationFrameId);
+        }
+        
+        animate(resolve, startTime);
       });
     }
 
