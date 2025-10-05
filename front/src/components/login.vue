@@ -159,7 +159,7 @@ export default {
   <div class="page">
     <!-- cabecera con logo y bandera -->
     <header class="hero">
-      <img src="/img/Logo_PascualBet.png" alt="Logo" class="avatar"/>
+      <img src="/img/Logo_PascualBet.jpg" alt="Logo" class="avatar"/>
     </header>
 
     <!-- tarjeta -->

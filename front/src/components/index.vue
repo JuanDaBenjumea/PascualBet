@@ -235,7 +235,7 @@ export default {
     <header class="site-header">
       <div class="container">
         <div class="brand">
-          <span class=""><img src="/img/Logo_PascualBet.png" alt="Logo" class="avatar"/></span>
+          <span class=""><img src="/img/Logo_PascualBet.jpg" alt="Logo" class="avatar"/></span>
         </div>
 
         <nav class="user-actions">

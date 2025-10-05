@@ -19,23 +19,23 @@
       </div>
 
       <div class="control-group">
-        <label>Bet Amount</label>
+        <label>cantidad de apuesta</label>
         <div class="input-group">
           <input type="number" v-model.number="betAmount" :disabled="isBettingLocked" />
         </div>
       </div>
 
       <div class="control-group">
-        <label>Risk Level</label>
+        <label>nivel de riesgo</label>
         <select v-model="riskLevel" :disabled="isBettingLocked">
-          <option value="low">Low</option>
-          <option value="medium">Medium</option>
-          <option value="high">High</option>
+          <option value="low">bajo</option>
+          <option value="medium">medio</option>
+          <option value="high">alto</option>
         </select>
       </div>
 
       <div class="control-group">
-        <label>Number of Balls</label>
+        <label>numero de bolas</label>
         <select v-model.number="ballsPerBet" :disabled="isBettingLocked">
           <option v-for="n in 10" :key="n" :value="n">{{ n }}</option>
         </select>
@@ -43,17 +43,28 @@
 
       <!-- Controles Modo Automático -->
       <div v-if="gameMode === 'auto'" class="control-group">
-        <label>Number of Bets</label>
+        <label>numeros de apuestas</label>
         <div class="input-group">
           <input type="number" v-model.number="numberOfBets" :disabled="isBettingLocked" placeholder="∞" />
         </div>
+      </div>
+
+      <div class="control-group">
+        <label>Costo Total</label>
+        <div class="total-cost-display">
+          $ {{ totalBetCost.toFixed(2) }}
+        </div>
+      </div>
+
+      <div v-if="isBalanceInsufficient" class="error-message">
+        Saldo insuficiente para esta apuesta.
       </div>
 
       <button 
         class="action-button"
         :class="buttonClass"
         @click="handleAction"
-        :disabled="isButtonDisabled || (isAutoBetting && gameMode === 'auto')"
+        :disabled="isButtonDisabled"
       >
         <template v-if="isAutoBetting && gameMode === 'auto'">
           Auto-Bet en progreso...
@@ -99,11 +110,12 @@
           </text>
         </g>
 
-        <!-- Bola -->
+        <!-- Bolas (plural) -->
         <circle
-          v-if="ball.visible"
-          :cx="ball.x"
-          :cy="ball.y"
+          v-for="b in balls"
+          :key="b.id"
+          :cx="b.x"
+          :cy="b.y"
           :r="ballRadius"
           class="ball"
         />
@@ -120,13 +132,6 @@ import * as Tone from 'tone';
 
 // --- Funciones de Lógica y Probabilidad (integradas desde plinko-logic.js) ---
 
-/**
- * Calcula el coeficiente binomial "n choose k".
- * C(n, k) = n! / (k! * (n - k)!)
- * @param {number} n - Número total de ensayos (filas_estacas).
- * @param {number} k - Número de éxitos (desvíos a la izquierda).
- * @returns {number} El coeficiente binomial.
- */
 function binomialCoefficient(n, k) {
   if (k < 0 || k > n) {
     return 0;
@@ -144,19 +149,12 @@ function binomialCoefficient(n, k) {
   return res;
 }
 
-/**
- * Calcula la distribución de probabilidad binomial para cada casilla final.
- * @param {number} filas_estacas - El número de filas de estacas.
- * @param {number} probabilidad_desvio_izq (p) - La probabilidad de que la bola se desvíe a la izquierda.
- * @returns {number[]} Un array con la probabilidad de caer en cada una de las `filas_estacas + 1` casillas.
- */
 function calculateBinomialProbabilities(filas_estacas, probabilidad_desvio_izq) {
   const num_casillas = filas_estacas + 1;
   const probabilities = new Array(num_casillas).fill(0);
   const p = probabilidad_desvio_izq;
 
   for (let k = 0; k < num_casillas; k++) {
-    // k = número de desvíos a la izquierda
     const combinations = binomialCoefficient(filas_estacas, k);
     const probability = combinations * Math.pow(p, k) * Math.pow(1 - p, filas_estacas - k);
     probabilities[k] = probability;
@@ -165,70 +163,32 @@ function calculateBinomialProbabilities(filas_estacas, probabilidad_desvio_izq) 
   return probabilities;
 }
 
-/**
- * Simula una gran cantidad de caídas de bolas para verificar la distribución de probabilidad.
- * @param {number} num_simulations - El número de caídas a simular (e.g., 10,000).
- * @param {number} filas_estacas - El número de filas de estacas.
- * @param {number} probabilidad_desvio_izq (p) - La probabilidad de desvío a la izquierda.
- * @returns {number[]} Un array con la frecuencia relativa de caída en cada casilla.
- */
-function simulateLargeScale(num_simulations, filas_estacas, probabilidad_desvio_izq) {
-  const num_casillas = filas_estacas + 1;
-  const counts = new Array(num_casillas).fill(0);
-
-  for (let i = 0; i < num_simulations; i++) {
-    let left_moves = 0;
-    for (let j = 0; j < filas_estacas; j++) {
-      if (Math.random() < probabilidad_desvio_izq) {
-        left_moves++;
-      }
-    }
-    counts[left_moves]++;
-  }
-
-  return counts.map(count => count / num_simulations);
-}
-
-/**
- * Ajusta los multiplicadores para alcanzar un Retorno Esperado (ER) específico.
- * Los multiplicadores son inversamente proporcionales a la probabilidad de la casilla.
- * @param {number[]} probabilities - El array de probabilidades para cada casilla.
- * @param {number} targetER - El Retorno Esperado deseado (e.g., 0.95 para 95%).
- * @param {number[] | null} baseMultipliers - Multiplicadores base para dar forma a la curva (opcional).
- * @returns {number[]} Un array de multiplicadores ajustados.
- */
 function adjustMultipliersForER(probabilities, targetER, baseMultipliers = null) {
   const num_casillas = probabilities.length;
   let multipliers = new Array(num_casillas);
 
   if (baseMultipliers) {
-    // Usa una curva base si se proporciona (para riesgos 'low' y 'high')
     const mid = Math.floor(num_casillas / 2);
     for (let i = 0; i < num_casillas; i++) {
       const distFromMid = Math.abs(i - mid);
       multipliers[i] = baseMultipliers[distFromMid] || baseMultipliers[baseMultipliers.length - 1];
     }
   } else {
-    // Genera multiplicadores inversamente proporcionales a la probabilidad
     const totalProb = probabilities.reduce((sum, p) => sum + (p > 0 ? 1 / p : 0), 0);
     for (let i = 0; i < num_casillas; i++) {
       multipliers[i] = (probabilities[i] > 0) ? (1 / probabilities[i]) / totalProb * num_casillas : 0;
     }
   }
 
-  // Calcula el ER actual con los multiplicadores generados
   const currentER = probabilities.reduce((sum, prob, i) => sum + prob * multipliers[i], 0);
 
-  // Si el ER actual es 0, no se puede escalar. Devuelve los multiplicadores base.
   if (currentER === 0) {
     return multipliers.map(m => parseFloat(m.toFixed(2)));
   }
 
-  // Escala todos los multiplicadores para que coincidan con el ER objetivo
   const scaleFactor = targetER / currentER;
   const finalMultipliers = multipliers.map(m => m * scaleFactor);
 
-  // Redondea a 2 decimales para la visualización
   return finalMultipliers.map(m => parseFloat(m.toFixed(2)));
 }
 
@@ -243,7 +203,7 @@ export default {
 
     // --- Configuración del Tablero ---
     const gameAreaRef = ref(null);
-    const filas_estacas = ref(12); // Parámetro de entrada: Número de filas de estacas
+    const filas_estacas = ref(12);
     const boardWidth = ref(500);
     const boardHeight = ref(550);
     const pegRadius = 8;
@@ -251,50 +211,57 @@ export default {
     const bucketHeight = 30;
     
     // --- Estado del Juego ---
-    const gameMode = ref('manual'); // 'manual', 'auto'
+    const gameMode = ref('manual');
     const router = useRouter();
     const betAmount = ref(10);
-    const riskLevel = ref("medium"); // 'low', 'medium', 'high'
+    const riskLevel = ref("medium");
     const ballsPerBet = ref(1);
-    const numberOfBets = ref(10); // Para modo auto
+    const numberOfBets = ref(10);
     
-    const gameState = ref("betting"); // 'betting', 'dropping'
+    const gameState = ref("betting");
     const isAutoBetting = ref(false);
     const betsPlayed = ref(0);
     const totalWinThisRound = ref(null);
-  // El saldo ahora viene del store centralizado
     
-    const ball = reactive({
-      id: 0,
-      x: boardWidth.value / 2,
-      y: 20,
-      vx: 0,
-      vy: 0,
-      visible: false,
-    });
-
+    const balls = ref([]);
     const hitPegs = reactive(new Set());
     const lastHitBucketIndex = ref(null);
+
+    // --- Lógica de Costo y Validación ---
+    const totalBetCost = computed(() => {
+      const baseCost = betAmount.value * ballsPerBet.value;
+      if (gameMode.value === 'auto' && numberOfBets.value > 0) {
+        return baseCost * numberOfBets.value;
+      }
+      return baseCost;
+    });
+
+    const isBalanceInsufficient = computed(() => {
+      // For infinite auto mode, we check per-round cost. Otherwise, check total cost.
+      if (gameMode.value === 'auto' && (!numberOfBets.value || numberOfBets.value <= 0)) {
+        return balance.credits.value < (betAmount.value * ballsPerBet.value);
+      }
+      return balance.credits.value < totalBetCost.value;
+    });
+
     // --- Lógica de Probabilidad y Multiplicadores ---
     const probabilidad_desvio_izq = computed(() => {
-      // El riesgo ajusta la probabilidad de desvío
-      if (riskLevel.value === 'low') return 0.45; // Ligero sesgo al centro
-      if (riskLevel.value === 'high') return 0.55; // Ligero sesgo a los extremos
-      return 0.5; // Riesgo medio, sin sesgo
+      if (riskLevel.value === 'low') return 0.45;
+      if (riskLevel.value === 'high') return 0.55;
+      return 0.5;
     });
 
     const probabilidades = computed(() => calculateBinomialProbabilities(filas_estacas.value, probabilidad_desvio_izq.value));
     const num_casillas = computed(() => filas_estacas.value + 1);
 
     // --- Lógica de la Interfaz ---
-
     const isBettingLocked = computed(() => gameState.value === 'dropping' || isAutoBetting.value);
 
     const buttonText = computed(() => {
-      if (isAutoBetting.value) return `Stop Auto (${betsPlayed.value}/${numberOfBets.value || '∞'})`;
-      if (gameState.value === 'dropping') return 'Dropping...';
-      if (gameMode.value === 'auto') return 'Start Auto-Bet';
-      return 'Place Bet';
+      if (isAutoBetting.value) return `DETENER AUTO-BET (${betsPlayed.value}/${numberOfBets.value || '∞'})`;
+      if (gameState.value === 'dropping') return 'JUGANDO...';
+      if (gameMode.value === 'auto') return 'INICIAR AUTO-BET';
+      return 'JUGAR';
     });
 
     const buttonClass = computed(() => {
@@ -303,8 +270,7 @@ export default {
     });
 
     const isButtonDisabled = computed(() => {
-      if (gameMode.value === 'manual' && gameState.value === 'dropping') return true;
-      return false;
+      return gameState.value === 'dropping' || isBalanceInsufficient.value || (isAutoBetting.value && gameMode.value === 'auto');
     });
 
     function setGameMode(mode) {
@@ -313,10 +279,8 @@ export default {
       }
     }
 
-    // Sonido de click para la salida de la bola
+    // --- Sonidos ---
     const clickSynth = new Tone.NoiseSynth({ volume: -26 }).toDestination();
-
-    // Clase para reproducir una nota con Tone.js
     class Note {
       constructor(note) {
         this.synth = new Tone.PolySynth().toDestination();
@@ -324,99 +288,17 @@ export default {
         this.note = note;
       }
       play() {
-        return this.synth.triggerAttackRelease(
-          this.note,
-          "32n",
-          Tone.context.currentTime
-        );
+        return this.synth.triggerAttackRelease(this.note, "32n", Tone.context.currentTime);
       }
     }
-    // Notas asociadas a cada bucket/pivote
-    const notesArr = [
-      "C#5", "C5", "B5", "A#5", "A5", "G#4", "G4", "F#4",
-      "F4", "F#4", "G4", "G#4", "A5", "A#5", "B5", "C5", "C#5"
-    ].map((note) => new Note(note));
+    const notesArr = ["C#5", "C5", "B5", "A#5", "A5", "G#4", "G4", "F#4", "F4", "F#4", "G4", "G#4", "A5", "A#5", "B5", "C5", "C#5"].map((note) => new Note(note));
 
-    // Sonido plano, corto y bajo para los buckets centrales
-    const flatSynth = new Tone.NoiseSynth({
-      volume: -28,
-      envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.01 }
-    }).toDestination();
-    // Filtro para hacerlo más "plano"
-    const flatFilter = new Tone.Filter(800, "lowpass").toDestination();
-    flatSynth.connect(flatFilter);
-
-    // Sonido audible para los buckets centrales si no suena nada
-    const fallbackSynth = new Tone.PolySynth().toDestination();
-
-    // Sonido fuerte y claro para los buckets centrales
-    const centralSynth = new Tone.PolySynth().toDestination();
-    centralSynth.set({ volume: -10 });
-
-    // Sonido especial para los extremos (0 y 16): acorde mayor brillante
-    const edgeSynth = new Tone.PolySynth().toDestination();
-    edgeSynth.set({ volume: -8 });
-
-    // Buckets centrales (planos): índices 5 a 10
-    const bucketSounds = [
-      // Extremo izquierdo
-      () => edgeSynth.triggerAttackRelease(["C5", "E5", "G5"], '8n'),
-      () => bellSynth.triggerAttackRelease('G4', '16n'),
-      () => marimbaSynth.triggerAttackRelease('A4', '16n'),
-      () => marimbaSynth.triggerAttackRelease('C5', '16n'),
-      () => marimbaSynth.triggerAttackRelease('E5', '16n'),
-      () => centralSynth.triggerAttackRelease('C5', '8n'),
-      () => centralSynth.triggerAttackRelease('C5', '8n'),
-      () => centralSynth.triggerAttackRelease('C5', '8n'),
-      () => centralSynth.triggerAttackRelease('C5', '8n'),
-      () => centralSynth.triggerAttackRelease('C5', '8n'),
-      () => centralSynth.triggerAttackRelease('C5', '8n'),
-      // ...resto igual...
-      () => marimbaSynth.triggerAttackRelease('E5', '16n'),
-      () => marimbaSynth.triggerAttackRelease('C5', '16n'),
-      () => marimbaSynth.triggerAttackRelease('A4', '16n'),
-      () => bellSynth.triggerAttackRelease('G4', '16n'),
-      // Extremo derecho
-      () => edgeSynth.triggerAttackRelease(["C5", "E5", "G5"], '8n'),
-    ];
-
-    // Descontar la apuesta al apostar (solo para manual y para cada ronda en auto)
-    function handleAction() {
-      if (isAutoBetting.value) {
-        stopAutoBetting();
-      } else if (gameMode.value === 'manual') {
-        if (balance.credits.value >= betAmount.value * ballsPerBet.value) {
-          startManualDrop();
-        }
-      } else if (gameMode.value === 'auto') {
-        startAutoBetting(); // La validación de saldo se hace en el loop
-      }
-    }
-
-    // En modo auto, descuenta la apuesta antes de cada ronda
-    async function autoBetLoop() {
-      if (!isAutoBetting.value) return;
-      if (numberOfBets.value > 0 && betsPlayed.value >= numberOfBets.value) {
-        stopAutoBetting();
-        return;
-      }
-      const totalCost = betAmount.value * ballsPerBet.value;
-      if (balance.credits.value >= totalCost) {
-        await playRound();
-        betsPlayed.value++;
-        setTimeout(autoBetLoop, 500);
-      } else {
-        alert("Saldo insuficiente para continuar el auto-bet.");
-        stopAutoBetting();
-      }
-    }
-
-    // --- Geometría del Tablero (Computadas) ---
+    // --- Geometría del Tablero ---
     const pegs = computed(() => {
       const pegArray = [];
       const rows = filas_estacas.value;
       const verticalSpacing = (boardHeight.value - bucketHeight - 80) / rows;
-      const horizontalSpacing = boardWidth.value / (rows + 2); // Espaciado horizontal basado en el número de filas
+      const horizontalSpacing = boardWidth.value / (rows + 2);
 
       for (let row = 0; row < rows; row++) {
         const numPegsInRow = row + 1;
@@ -430,30 +312,21 @@ export default {
       return pegArray;
     });
 
-
     const bucketWidth = computed(() => boardWidth.value / num_casillas.value);
 
     const buckets = computed(() => {
-      // Ajusta los multiplicadores para un ER del 95%
       const baseMultipliers = { 
-        low:    [1.1, 1, 1.2, 1.5, 3],   // Riesgo bajo: premios consistentes y bajos.
-        medium: [0.5, 1.1, 2, 5, 15],  // Riesgo medio: equilibrio.
-        high:   [0.3, 0.5, 3, 10, 30]    // Riesgo alto: alta volatilidad.
+        low:    [1.1, 1, 1.2, 1.5, 3],
+        medium: [0.5, 1.1, 2, 5, 15],
+        high:   [0.3, 0.5, 3, 10, 30]
       };
-      const adjustedMultipliers = adjustMultipliersForER(
-        probabilidades.value, 
-        0.95, // ER del 95%
-        baseMultipliers[riskLevel.value] || null // Pasa multiplicadores base para 'low' y 'high'
-      );
-
+      const adjustedMultipliers = adjustMultipliersForER(probabilidades.value, 0.95, baseMultipliers[riskLevel.value] || null);
       const bWidth = bucketWidth.value;
-
       const colors = {
         low:    ['green', 'blue', 'yellow'],
         medium: ['green', 'blue', 'yellow'],
         high:   ['red', 'green', 'blue', 'yellow'],
       };
-
       return adjustedMultipliers.map((m, i) => ({
         x: i * bWidth,
         y: boardHeight.value - bucketHeight,
@@ -462,13 +335,30 @@ export default {
       }));
     });
 
-
-    // --- Lógica de Animación y Juego ---
+    // --- Lógica Principal del Juego ---
     let animationFrameId = null;
 
+    async function handleAction() {
+      if (isAutoBetting.value) {
+        stopAutoBetting();
+        return;
+      }
+      if (isBalanceInsufficient.value) {
+        // This check is redundant due to the button being disabled, but good for safety
+        alert("Saldo insuficiente.");
+        return;
+      }
+
+      if (gameMode.value === 'manual') {
+        await playRound();
+      } else if (gameMode.value === 'auto') {
+        startAutoBetting();
+      }
+    }
+
     async function startManualDrop() {
-      if (gameState.value === 'dropping') return;
-      await playRound();
+        if (gameState.value === 'dropping') return;
+        await playRound();
     }
 
     function startAutoBetting() {
@@ -480,138 +370,132 @@ export default {
     function stopAutoBetting() {
       isAutoBetting.value = false;
     }
+    
+    async function autoBetLoop() {
+      if (!isAutoBetting.value) return;
+      if (numberOfBets.value > 0 && betsPlayed.value >= numberOfBets.value) {
+        stopAutoBetting();
+        return;
+      }
+      
+      const roundCost = betAmount.value * ballsPerBet.value;
+      if (balance.credits.value < roundCost) {
+        alert("Saldo insuficiente para continuar el auto-bet.");
+        stopAutoBetting();
+        return;
+      }
+
+      await playRound();
+      betsPlayed.value++;
+      // Use a delay before starting the next auto-bet round
+      setTimeout(autoBetLoop, 1000); 
+    }
 
     async function playRound() {
-      const totalCost = betAmount.value * ballsPerBet.value;
-      if (totalCost <= 0) {
-        alert("Please place a valid bet.");
-        return;
-      }
-
-      if (balance.credits.value < totalCost) {
-        alert("Saldo insuficiente.");
-        return;
-      }
-
       gameState.value = 'dropping';
       totalWinThisRound.value = 0;
       clickSynth.triggerAttackRelease('8n');
 
-      try {
-        for (let i = 0; i < ballsPerBet.value; i++) {
-          const { win, multiplier } = await dropSingleBall(i);
-          const resultado = win > 0 ? 'GANADO' : 'PERDIDO';
+      await new Promise(resolveRound => {
+        const ballsToDrop = ballsPerBet.value;
+        let ballsFinished = 0;
 
-          try {
-            await fetch('http://localhost:4000/api/bet/create', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ uid: uid.value, id_juego: 4, monto: betAmount.value, resultado, multiplicador })
-            });
-            await syncBalance();
-          } catch (error) {
-            console.error("Error communicating with the server during bet:", error);
+        const onBallFinished = async (ball) => {
+          const bucketIndex = Math.floor(ball.x / bucketWidth.value);
+          const winningBucket = buckets.value[bucketIndex];
+
+          if (winningBucket) {
+            const winAmount = betAmount.value * winningBucket.multiplier;
+            totalWinThisRound.value += winAmount;
+            const resultado = winAmount > 0 ? 'GANADO' : 'PERDIDO';
+
+            try {
+              await fetch('http://localhost:4000/api/bet/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ uid: uid.value, id_juego: 4, monto: betAmount.value, resultado, multiplicador: winningBucket.multiplier })
+              });
+              await syncBalance();
+            } catch (e) {
+              console.error("Error al registrar la apuesta:", e);
+            }
           }
 
-          if (ballsPerBet.value > 1 && i < ballsPerBet.value - 1) {
-            await new Promise(resolve => setTimeout(resolve, 200));
+          ballsFinished++;
+          if (ballsFinished >= ballsToDrop) {
+            resolveRound();
           }
+        };
+
+        balls.value = [];
+        for (let i = 0; i < ballsToDrop; i++) {
+          balls.value.push({
+            id: Date.now() + i,
+            x: boardWidth.value / 2 + (Math.random() - 0.5) * 20,
+            y: 20,
+            vx: (Math.random() - 0.5) * 2,
+            vy: 0,
+            startTime: Date.now()
+          });
         }
-      } catch (error) {
-        console.error("An error occurred during the Plinko round:", error);
-      } finally {
-        gameState.value = 'betting';
+
+        if (animationFrameId) cancelAnimationFrame(animationFrameId);
+        gameLoop(onBallFinished);
+      });
+
+      gameState.value = 'betting';
+      if (!isAutoBetting.value) { // Don't clear message immediately in auto-bet
         setTimeout(() => {
           totalWinThisRound.value = null;
         }, 3000);
       }
     }
 
-    function animate(resolve, startTime) {
-      const elapsedTime = Date.now() - startTime;
-      if (elapsedTime > 10000) { // 10 segundos de tiempo de espera
-        console.warn(`La bola de Plinko ${ball.id} ha superado el tiempo de espera y ha sido eliminada.`);
-        ball.visible = false;
-        resolve({ win: 0, multiplier: 0 }); // Resuelve como una pérdida
-        return; // Detiene el bucle de animación
-      }
+    function gameLoop(onBallFinished) {
+      for (let i = balls.value.length - 1; i >= 0; i--) {
+        const ball = balls.value[i];
 
-      // Comprobar si ha llegado al fondo ANTES de la siguiente animación
-      if (ball.y > boardHeight.value - bucketHeight - ballRadius) {
-        ball.visible = false;
+        const hasFinished = ball.y > boardHeight.value - bucketHeight - ballRadius;
+        const hasTimedOut = (Date.now() - ball.startTime) > 10000;
 
-        const bucketIndex = Math.floor(ball.x / bucketWidth.value);
-        const winningBucket = buckets.value[bucketIndex];
-
-        // Animar el cubo ganador
-        lastHitBucketIndex.value = bucketIndex;
-        setTimeout(() => {
-          if (lastHitBucketIndex.value === bucketIndex) lastHitBucketIndex.value = null;
-        }, 500);
-
-        if (winningBucket) {
-          const winAmount = betAmount.value * winningBucket.multiplier;
-          totalWinThisRound.value += winAmount;
-          resolve({ win: winAmount, multiplier: winningBucket.multiplier });
-        } else {
-          resolve({ win: 0, multiplier: 0 }); // Cayó fuera
+        if (hasFinished || hasTimedOut) {
+          if(hasTimedOut) console.warn(`Ball ${ball.id} timed out.`);
+          onBallFinished(ball);
+          balls.value.splice(i, 1);
+          continue;
         }
-        return; // Detener el bucle de animación
-      }
 
-      // Aplicar gravedad
-      ball.vy += 0.15;
+        ball.vy += 0.15;
+        ball.x += ball.vx;
+        ball.y += ball.vy;
 
-      // Actualizar posición
-      ball.x += ball.vx;
-      ball.y += ball.vy;
+        for (const peg of pegs.value) {
+          const dx = ball.x - peg.x;
+          const dy = ball.y - peg.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
 
-      // Detección de colisión con pivotes
-      for (const peg of pegs.value) {
-        const dx = ball.x - peg.x;
-        const dy = ball.y - peg.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-
-        if (distance < ballRadius + pegRadius) {
-          if (!hitPegs.has(peg.id)) {
-            hitPegs.add(peg.id);
-            setTimeout(() => hitPegs.delete(peg.id), 300);
-            
-            const bucketIdx = Math.round(peg.x / bucketWidth.value);
-            if (notesArr[bucketIdx]) notesArr[bucketIdx].play();
+          if (distance < ballRadius + pegRadius) {
+            if (!hitPegs.has(peg.id)) {
+              hitPegs.add(peg.id);
+              setTimeout(() => hitPegs.delete(peg.id), 300);
+              const bucketIdx = Math.round(peg.x / bucketWidth.value);
+              if (notesArr[bucketIdx]) notesArr[bucketIdx].play();
+            }
+            ball.vy *= -0.4;
+            ball.vx = (dx / distance) * 2.5 + (Math.random() - 0.5);
           }
-          
-          ball.vy *= -0.4;
-          ball.vx = (dx / distance) * 2.5 + (Math.random() - 0.5);
+        }
+
+        if (ball.x < ballRadius || ball.x > boardWidth.value - ballRadius) {
+          ball.vx *= -0.8;
         }
       }
 
-      // Detección de colisión con paredes
-      if (ball.x < ballRadius || ball.x > boardWidth.value - ballRadius) {
-        ball.vx *= -0.8;
+      if (balls.value.length > 0) {
+        animationFrameId = requestAnimationFrame(() => gameLoop(onBallFinished));
+      } else {
+        animationFrameId = null;
       }
-
-      animationFrameId = requestAnimationFrame(() => animate(resolve, startTime));
-    }
-
-    function dropSingleBall(id) {
-      return new Promise(resolve => {
-        const startTime = Date.now();
-        hitPegs.clear();
-        ball.id = id;
-        ball.x = boardWidth.value / 2 + (Math.random() - 0.5) * 10;
-        ball.y = 20;
-        ball.vx = 0;
-        ball.vy = 0;
-        ball.visible = true;
-
-        // Cancelar cualquier frame de animación anterior para evitar bucles fantasma
-        if (animationFrameId) {
-          cancelAnimationFrame(animationFrameId);
-        }
-        
-        animate(resolve, startTime);
-      });
     }
 
     watch(riskLevel, () => {
@@ -625,7 +509,6 @@ export default {
       if (gameAreaRef.value) {
         resizeObserver = new ResizeObserver(entries => {
           for (const entry of entries) {
-
             const { width, height } = entry.contentRect;
             boardWidth.value = width;
             boardHeight.value = height;
@@ -658,7 +541,7 @@ export default {
       buckets,
       bucketWidth,
       bucketHeight,
-      ball,
+      balls,
       ballRadius,
       setGameMode,
       isBettingLocked,
@@ -672,8 +555,10 @@ export default {
       gameAreaRef,
       hitPegs,
       lastHitBucketIndex,
-  balance: computed(() => balance.credits.value),
+      balance: computed(() => balance.credits.value),
       handleAction,
+      totalBetCost,
+      isBalanceInsufficient,
     };
   },
 };
@@ -877,6 +762,24 @@ button:disabled {
 .loss-message {
   background-color: rgba(255, 77, 77, 0.3);
   color: #ff4d4d;
+}
+
+.error-message {
+  color: #ef4444;
+  font-size: 0.9rem;
+  text-align: center;
+  margin-top: -1rem;
+  margin-bottom: 1rem;
+}
+
+.total-cost-display {
+  background-color: #0a1016;
+  border: 1px solid #00d4ff;
+  color: #fff;
+  padding: 0.75rem;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: bold;
 }
 
 .game-area {
