@@ -1,11 +1,5 @@
 <template>
   <div class="plinko-game-container">
-  <button @click="goBack" class="btn-back top-left" :disabled="isBettingLocked">
-      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-        <path fill-rule="evenodd" d="M12 8a.5.5 0 0 1-.5.5H5.707l2.147 2.146a.5.5 0 0 1-.708.708l-3-3a.5.5 0 0 1 0-.708l3-3a.5.5 0 1 1 .708.708L5.707 7.5H11.5a.5.5 0 0 1 .5.5z"/>
-      </svg>
-      Volver al Menú
-    </button>
     <div class="controls-panel">
       <div class="balance-bar left">
         <span class="balance-icon">💰</span>
@@ -77,6 +71,13 @@
       <div v-if="totalWinThisRound !== null" class="game-message" :class="totalWinThisRound > 0 ? 'win-message' : 'loss-message'">
         {{ totalWinThisRound > 0 ? `Total Win: ${totalWinThisRound.toFixed(2)}` : 'No luck this round!' }}
       </div>
+
+      <button @click="goBack" class="back-button" :disabled="isBettingLocked">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+          <path fill-rule="evenodd" d="M12 8a.5.5 0 0 1-.5.5H5.707l2.147 2.146a.5.5 0 0 1-.708.708l-3-3a.5.5 0 0 1 0-.708l3-3a.5.5 0 1 1 .708.708L5.707 7.5H11.5a.5.5 0 0 1 .5.5z"/>
+        </svg>
+        Volver al Menú
+      </button>
     </div>
 
     <!-- Área del Juego (Tablero) -->
@@ -566,70 +567,16 @@ export default {
 
 <style scoped>
 .plinko-game-container {
-  position: fixed;
-  top: 10;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
   display: flex;
   gap: 2rem;
   justify-content: center;
-  align-items: center;
+  align-items: stretch; /* Para que los hijos tengan la misma altura */
+  width: 100%;
+  min-height: 100vh;
   padding: 2rem;
   background: #1D1E22;
   color: #fff;
   box-sizing: border-box;
-}
-
-
-.btn-back {
-  position: absolute;
-  top: 1.5rem;
-  left: 1.5rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.6rem 1.2rem;
-  background: linear-gradient(145deg, #3a4c5a, #213743);
-  color: #e0e0e0;
-  border: 1px solid #4f6a7e;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: bold;
-  font-size: 0.9rem;
-  z-index: 20;
-  transition: all 0.2s ease-in-out;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-}
-.btn-back:hover {
-  background: linear-gradient(145deg, #4f6a7e, #3a4c5a);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.4);
-  color: #fff;
-}
-
-.btn-back.top-left {
-  position: absolute;
-  top: 18px;
-  left: 18px;
-  z-index: 30;
-  background: #22313f;
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  padding: 8px 18px;
-  font-weight: bold;
-  font-size: 1rem;
-  box-shadow: 0 2px 8px #0002;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: background 0.2s, transform 0.1s;
-}
-.btn-back.top-left:hover {
-  background: #1abc9c;
-  color: #22313f;
-  transform: translateY(-2px) scale(1.04);
 }
 
 .controls-panel {
@@ -642,8 +589,6 @@ export default {
   border-radius: 16px; /* Bordes más redondeados */
   width: 280px;
   flex-shrink: 0; /* Evita que el panel se encoja */
-  min-height: 450px; /* Altura mínima para el modo manual */
-  transition: min-height 0.3s ease; /* Transición suave */
   border: 1px solid #3a4c5a;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4); /* Sombra para profundidad */
   font-family: 'Poppins', sans-serif; /* Fuente moderna */
@@ -784,7 +729,6 @@ button:disabled {
 
 .game-area {
   flex-grow: 1; /* Ocupa el espacio restante */
-  height: 100%;
   background-color: #1A1A21; /* Color solicitado */
   border-radius: 8px;
 
@@ -858,12 +802,57 @@ button:disabled {
   pointer-events: none;
 }
 
+.back-button {
+  margin-top: auto; /* Empuja el botón hacia abajo */
+  background: #22313f;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 18px;
+  font-weight: bold;
+  font-size: 1rem;
+  box-shadow: 0 2px 8px #0002;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 0.2s, transform 0.1s;
+  cursor: pointer;
+}
+.back-button:hover:not(:disabled) {
+  background: #1abc9c;
+  color: #22313f;
+  transform: translateY(-2px) scale(1.04);
+}
+
 /* Hover effect for pegs */
 .peg:hover {
   fill: #f0b90b; /* Change color on hover */
   cursor: pointer; /* Change cursor to indicate interactivity */
 }
 
+/* --- Estilos Responsivos --- */
+@media (max-width: 960px) {
+  .plinko-game-container {
+    flex-direction: column;
+    position: relative; /* Cambiar de 'fixed' para permitir scroll */
+    height: auto;
+    min-height: 100vh;
+    padding: 1rem; /* Menos padding en pantallas pequeñas */
+  }
 
+  .controls-panel {
+    width: 100%;
+    max-width: 500px; /* Evita que sea demasiado ancho en tablets */
+    order: 1; /* El panel de control va primero */
+  }
+
+  .game-area {
+    width: 100%;
+    max-width: 500px;
+    height: 60vh; /* Altura razonable para el tablero */
+    order: 2; /* El área de juego va después */
+  }
+}
 
 </style>

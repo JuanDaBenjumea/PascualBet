@@ -31,7 +31,7 @@
 
     <div class="game-content">
       <!-- Botón Volver (debajo del encabezado) -->
-      <button @click="goBack" class="btn-back-below-header" :disabled="gameStarted">⬅ Volver</button>
+      <button @click="goBack" class="btn-back-below-header" :disabled="gameStarted && !gameOver">⬅ Volver</button>
   
       <div class="bet-section" v-if="!gameStarted">
         <div class="bet-card">
@@ -90,14 +90,16 @@
           <p>💵 Apuesta: {{ betAmount }}</p>
         </div>
       </div>
-      <div class="actions" v-if="playerTurn && gameStarted">
+      <div class="actions" v-if="playerTurn && gameStarted && !gameOver">
         <button @click="hit">PEDIR CARTA</button>
         <button @click="stand">PLANTARSE</button>
       </div>
       <div v-if="gameOver" class="game-over">
         <h2>{{ resultMessage }}</h2>
-        <button @click="resetGame">JUGAR DE NUEVO</button>
-        <button @click="openHelpModal" class="help-button">VER REGLAS</button>
+        <div class="game-over-actions">
+          <button @click="resetGame">JUGAR DE NUEVO</button>
+          <button @click="openHelpModal" class="help-button">VER REGLAS</button>
+        </div>
       </div>
     </div>
     
@@ -735,6 +737,10 @@ export default {
 .card span.red { color: #8b0000; }
 .card span.black { color: #121212; }
 
+.actions {
+  text-align: center;
+  margin-top: 2rem;
+}
 .actions button {
   margin: 0.5rem;
   padding: 0.8rem 1.5rem;
@@ -756,6 +762,7 @@ export default {
 
 .game-over {
   margin-top: 2rem;
+  text-align: center;
 }
 .game-over h2 {
   font-size: 2rem;
@@ -771,6 +778,13 @@ export default {
   border-radius: 6px;
   cursor: pointer;
   font-weight: 700;
+}
+.game-over-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1rem;
 }
 
 .manual {

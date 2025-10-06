@@ -570,6 +570,7 @@ onUnmounted(() => {
 
 .game-area-wrapper {
   display: flex;
+  height: 65%;
   flex-direction: column;
   background: #1e293b;
   border-radius: 12px;
@@ -589,7 +590,7 @@ onUnmounted(() => {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  font-size: 5rem;
+  font-size: 3rem;
   font-weight: 700;
   color: #fff;
   text-shadow: 0 0 20px rgba(0, 242, 255, 0.5);
@@ -711,6 +712,7 @@ onUnmounted(() => {
 /* Info Panel */
 .info-panel {
   background: #1e293b;
+  height: 65%;
   border-radius: 8px;
   padding: 1.5rem;
   display: flex;

@@ -60,7 +60,7 @@
           </div>
     
           <button v-if="gameState === 'betting'" class="action-button bet-button" @click="startGame" :disabled="isBetInvalid">
-            Bet
+            jugar
           </button>
           <div v-if="lastWinnings !== null" class="total-win-label">
             Total Win: {{ lastWinnings.toFixed(2) }}
@@ -267,6 +267,11 @@ async function onTileClick(index) {
     // Sonido de diamante
     diamondSynth.triggerAttackRelease(['C5', 'E5', 'G5'], '16n');
     diamondsFound.value++;
+
+    // Condición de victoria instantánea si es el único diamante posible
+    if (numMines.value === maxMines.value) {
+      await cashout();
+    }
   }
 }
 
