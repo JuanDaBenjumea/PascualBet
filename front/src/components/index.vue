@@ -27,6 +27,7 @@ export default {
       withdrawAccountNumber: '',
       depositError: '',
       withdrawError: '',
+      isBackgroundActive: true, // Controla si el fondo está activo
     };
   },
   computed: {
@@ -43,6 +44,9 @@ export default {
     },
     closeLogoutModal() {
       this.showLogoutModal = false;
+    },
+    toggleBackground() {
+      this.isBackgroundActive = !this.isBackgroundActive;
     },
     logout() {
       localStorage.removeItem('pb:session');
@@ -231,10 +235,10 @@ export default {
 </script>
 
 <template>
-  <div class="main-container">
+  <div class="main-container" :class="{ 'no-background': !isBackgroundActive }">
     <header class="site-header">
       <div class="container">
-        <div class="brand">
+        <div class="brand" @click="toggleBackground" style="cursor: pointer;" title="Activar/Desactivar fondo">
           <span class=""><img src="/img/Logo_PascualBet.jpg" alt="Logo" class="avatar"/></span>
         </div>
 
@@ -507,6 +511,11 @@ export default {
   background-position: center;
   background-attachment: fixed;
   min-height: 100vh;
+}
+
+.main-container.no-background {
+  background-image: none;
+  background-color: #0e1217; /* Color de fondo alternativo */
 }
 
 .site-header {

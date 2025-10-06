@@ -571,10 +571,11 @@ export default {
   gap: 2rem;
   justify-content: center;
   align-items: stretch; /* Para que los hijos tengan la misma altura */
-  width: 100%;
-  min-height: 100vh;
+  width: 100vw;
+  height: 100vh; /* Ocupa exactamente la altura de la pantalla */
   padding: 2rem;
   background: #1D1E22;
+  overflow: hidden; /* Evita el scroll en la página principal */
   color: #fff;
   box-sizing: border-box;
 }
@@ -592,6 +593,7 @@ export default {
   border: 1px solid #3a4c5a;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4); /* Sombra para profundidad */
   font-family: 'Poppins', sans-serif; /* Fuente moderna */
+  overflow-y: auto; /* Permite scroll interno si el contenido es muy alto */
 }
 
 .balance-bar.left {
@@ -731,11 +733,11 @@ button:disabled {
   flex-grow: 1; /* Ocupa el espacio restante */
   background-color: #1A1A21; /* Color solicitado */
   border-radius: 8px;
-
   border: 1px solid #213743;
   display: flex;
   align-items: center;
   justify-content: center;
+  aspect-ratio: 1 / 1.1; /* Proporción casi cuadrada, ligeramente más alta */
 }
 
 .plinko-board {
