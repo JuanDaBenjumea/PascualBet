@@ -89,6 +89,10 @@ export default {
       };
 
       const amount = Number(this.depositAmount);
+      if (amount > 10000000) {
+        this.depositError = "El monto máximo por depósito es $10,000,000.";
+        return;
+      }
       if (!this.depositBank) {
         this.depositError = "Selecciona un banco.";
         return;
@@ -97,8 +101,8 @@ export default {
         this.depositError = "Selecciona el tipo de cuenta.";
         return;
       }
-      if (!this.depositAccountNumber || this.depositAccountNumber.length < 6) {
-        this.depositError = "Ingresa un número de cuenta válido (mínimo 6 dígitos).";
+      if (!this.depositAccountNumber || this.depositAccountNumber.length !== 16) {
+        this.depositError = "El número de cuenta debe tener exactamente 16 dígitos.";
         return;
       }
       if (amount < 10) {
@@ -174,8 +178,8 @@ export default {
         this.withdrawError = "Selecciona el tipo de cuenta.";
         return;
       }
-      if (!this.withdrawAccountNumber || this.withdrawAccountNumber.length < 6) {
-        this.withdrawError = "Ingresa un número de cuenta válido (mínimo 6 dígitos).";
+      if (!this.withdrawAccountNumber || this.withdrawAccountNumber.length !== 16) {
+        this.withdrawError = "El número de cuenta debe tener exactamente 16 dígitos.";
         return;
       }
       if (amount < 20) {
@@ -380,13 +384,13 @@ export default {
         <div class="modal-body">
           <label class="field">
             <span>Monto</span>
+            <span>Mín. $10 - Máx. $10,000,000</span>
             <input
               type="number"
               v-model="depositAmount"
               @input="handleDepositInput"
-              min="10000"
+              min="10"
               step="1000"
-              placeholder="Monto mínimo $10,000"
             />
           </label>
           <label class="field">
@@ -413,7 +417,7 @@ export default {
               v-model="depositAccountNumber"
               @input="handleDepositAccountNumberInput"
               maxlength="16"
-              placeholder="Máximo 16 dígitos"
+              placeholder="Exactamente 16 dígitos"
             />
           </label>
           <small v-if="depositError" class="error">{{ depositError }}</small>
@@ -468,7 +472,7 @@ export default {
               v-model="withdrawAccountNumber"
               @input="handleWithdrawAccountNumberInput"
               maxlength="16"
-              placeholder="Máximo 16 dígitos"
+              placeholder="Exactamente 16 dígitos"
             />
           </label>
           <small v-if="withdrawError" class="error">{{ withdrawError }}</small>
@@ -668,5 +672,32 @@ export default {
   font-size: 13px;
   margin-top: 8px;
   display: block;
+}
+
+/* Estilos para los campos de los modales */
+.modal-body .field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 1rem;
+}
+
+.modal-body .field input,
+.modal-body .field select {
+  width: 100%;
+  padding: 12px 14px;
+  background-color: #0f1620;
+  border: 1px solid #223042;
+  border-radius: 6px;
+  color: #e6ecf3;
+  font-size: 1rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.modal-body .field input:focus,
+.modal-body .field select:focus {
+  outline: none;
+  border-color: #3ba0ff;
+  box-shadow: 0 0 0 3px rgba(59, 160, 255, 0.2);
 }
 </style>

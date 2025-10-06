@@ -34,7 +34,7 @@
         <!-- Panel de Controles Izquierdo -->
         <div class="controls-panel">
           <div class="control-group">
-            <button @click="goBack" class="btn-back-below-header" :disabled="gameState !== 'betting'">⬅ Regresar</button>
+            <button @click="goBack" class="btn-back-below-header" :disabled="gameState === 'playing'">⬅ Regresar</button>
             <label>cantida de apuesta</label>
             <div class="input-group">
               <input type="number" v-model.number="betAmount" :disabled="gameState !== 'betting'" />

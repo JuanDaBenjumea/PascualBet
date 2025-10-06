@@ -718,3 +718,30 @@ END
 GO 
 
 
+SELECT
+    U.Nombre,
+    COUNT(A.Apuesta_ID) AS Total_Apuestas_Ganadas
+FROM
+    Usuarios U
+JOIN
+    Apuestas A ON U.Usuario_ID = A.Usuario_ID
+WHERE
+    A.Estado = 'Ganada'
+GROUP BY
+    U.Usuario_ID, U.Nombre
+ORDER BY
+    Total_Apuestas_Ganadas DESC
+LIMIT 1;
+
+SELECT
+    A.*,
+    U.Nombre AS Nombre_Usuario
+FROM
+    Apuestas A
+JOIN
+    Usuarios U ON A.Usuario_ID = U.Usuario_ID
+WHERE
+    A.Estado = 'Ganada'
+ORDER BY
+    A.Cuota DESC
+LIMIT 1;
