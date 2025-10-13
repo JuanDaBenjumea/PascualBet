@@ -875,6 +875,8 @@ export default {
   display: flex;
   justify-content: center;
   align-items: center;
+  width: 400px;
+  height: 400px;
   margin-bottom: 2rem;
   filter: drop-shadow(0 0 25px rgba(212, 175, 55, 0.2)); /* Brillo sutil */
 }

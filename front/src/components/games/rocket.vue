@@ -159,7 +159,7 @@ const buttonClass = computed(() => {
 });
 
 const buttonDisabled = computed(() => {
-  const canBet = (gameState.value === 'waiting' || gameState.value === 'starting') && !hasPlacedBet.value && credits.value >= betAmount.value;
+  const canBet = (gameState.value === 'waiting' || gameState.value === 'starting') && !hasPlacedBet.value && credits.value >= betAmount.value && betAmount.value > 0;
   const canCashout = gameState.value === 'running' && hasPlacedBet.value && !hasCashedOut.value;
   return !canBet && !canCashout;
 });

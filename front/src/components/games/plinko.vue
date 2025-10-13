@@ -459,8 +459,18 @@ export default {
         const hasFinished = ball.y > boardHeight.value - bucketHeight - ballRadius;
         const hasTimedOut = (Date.now() - ball.startTime) > 10000;
 
-        if (hasFinished || hasTimedOut) {
-          if(hasTimedOut) console.warn(`Ball ${ball.id} timed out.`);
+        if (hasFinished || hasTimedOut) { // Si la bola ha terminado o ha expirado
+          if (hasTimedOut) console.warn(`Ball ${ball.id} timed out.`);
+
+          // Calcular el índice original
+          let originalBucketIndex = Math.floor(ball.x / bucketWidth.value);
+          // Ajustar el resultado para que sea una posición después (a la derecha)
+          let finalBucketIndex = Math.min(num_casillas.value - 1, originalBucketIndex + 1);
+
+
+          const finalX = finalBucketIndex * bucketWidth.value + bucketWidth.value / 2;
+          ball.x = finalX; // Mueve la bola al centro del cubo.
+
           onBallFinished(ball);
           balls.value.splice(i, 1);
           continue;

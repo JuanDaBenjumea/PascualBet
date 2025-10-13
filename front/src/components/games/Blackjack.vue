@@ -57,7 +57,7 @@
             <button class="quick-bet-button" :class="{selected: betAmount===50}" @click="betAmount=50">$50</button>
             <button class="quick-bet-button" :class="{selected: betAmount===100}" @click="betAmount=100">$100</button>
           </div>
-          <button @click="startGame" :disabled="betAmount < 10" class="deal-button">REPARTIR</button>
+          <button @click="startGame" :disabled="betAmount < 10 || betAmount > credits" class="deal-button">REPARTIR</button>
           <p class="bet-help-text">
             Selecciona una ficha o ingresa un monto. Mínimo: $10.
           </p>

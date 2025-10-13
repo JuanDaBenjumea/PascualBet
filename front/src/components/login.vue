@@ -45,23 +45,33 @@ export default {
         return;
       }
       try {
-        const r = await fetch(`http://localhost:4000/api/login`, {
+        const r = await fetch(`http://localhost:3000/api/users/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ uid, password })
+          body: JSON.stringify({ id_usuario: uid, contrasena: password })
         });
+
         const data = await r.json();
-        if (!r.ok || !data.ok) throw new Error(data.error || 'Error de login');
+
+        if (!r.ok) {
+          throw new Error(data.message || 'Error de login');
+        }
+
+        // CORRECTO: Usar los datos de la respuesta del servidor para la sesión
         const session = {
-          uid,
+          uid: data.id_usuario, // Usar el id_usuario de la respuesta
+          nombre: data.nombre,
           rol: data.rol,
-          saldo: data.saldo,
-          dob: data.dob,
+          saldo: data.saldo_actual,
+          dob: data.fecha_nacimiento,
+          foto: data.foto_perfil,
           ts: Date.now()
         };
+
         setSession(session); // <-- Actualiza el store y localStorage
         await syncBalance(); // <-- Sincroniza el saldo desde la base de datos
         this.$router.push("/menu");
+
       } catch (err) {
         this.toast(err.message);
       }
@@ -80,10 +90,17 @@ export default {
         this.toast("Debes aceptar los términos y condiciones.");
         return;
       }
+
+      // Validaciones de campos
       const uid = this.signupUid.trim();
       const password = this.signupPwd.trim();
       const dob = this.signupDob;
       const nombre = this.signupName.trim();
+
+      if (!uid || !password || !dob || !nombre) {
+        this.toast('Todos los campos son obligatorios.');
+        return;
+      }
 
       function isAdult(isoDate) {
         if (!isoDate) return false;
@@ -92,20 +109,34 @@ export default {
         const eighteen = new Date(d.getFullYear() + 18, d.getMonth(), d.getDate());
         return eighteen <= today;
       }
+
       if (!isAdult(dob)) {
         this.toast('Debes ser mayor de 18 años');
         return;
       }
+
       try {
-        const r = await fetch(`http://localhost:4000/api/signup`, {
+        const r = await fetch(`http://localhost:3000/api/users/new`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ uid, name: nombre, password, dob })
+          body: JSON.stringify({
+            id_usuario: uid,
+            nombre: nombre,
+            contrasena: password,
+            fecha_nacimiento: dob
+          })
         });
+
         const data = await r.json();
-        if (!r.ok || !data.ok) throw new Error(data.error || 'Error al crear la cuenta');
+
+        if (!r.ok) {
+          const errorInfo = data.message || 'Error desconocido del servidor';
+          throw new Error(errorInfo);
+        }
+
         this.toast('Cuenta creada con éxito. Ahora puedes iniciar sesión.');
         this.activeTab = 'login';
+
       } catch (err) {
         this.toast(err.message);
       }
