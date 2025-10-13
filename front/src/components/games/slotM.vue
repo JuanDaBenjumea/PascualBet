@@ -182,8 +182,8 @@ export default {
       reels: ['🍒', '🍊', '🍋'],
       symbols: ['🍒', '🍊', '🍋', '🍇', '⭐', '💎', '🔔', '7️⃣'],
       paytable: {
-        '🍒 🍒 🍒': 10,
-        '🍊 🍊 🍊': 15,
+        '� 🍒 🍒': 10,
+        '🍊 🍊 ': 15,
         '🍋 🍋 🍋': 20,
         '🍇 🍇 🍇': 25,
         '⭐ ⭐ ⭐': 50,
@@ -558,9 +558,8 @@ export default {
       // Solo permite si hay créditos suficientes
       if (this.credits >= this.maxBet) {
         this.currentBet = this.maxBet;
-      } else {
-        this.currentBet = this.credits >= this.minBet ? this.credits : this.minBet;
       }
+      this.currentBet = Math.min(this.credits, this.maxBet);
     },
 
     goBack() {

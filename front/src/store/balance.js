@@ -41,13 +41,57 @@ export const syncBalance = async () => {
   if (!session) return;
   const { uid } = JSON.parse(session);
   try {
-    const r = await fetch(`http://localhost:4000/api/user/info/${uid}`);
-    const data = await r.json();
-    if (data.ok && data.info) {
-      state.credits = Number(data.info.saldo_actual) || 0;
-      // Actualiza también el saldo en localStorage
-      const newSession = { ...JSON.parse(session), saldo: state.credits };
-      localStorage.setItem('pb:session', JSON.stringify(newSession));
+    const r = await fetch(`http://localhost:3000/api/users/find/${uid}`);
+    const userInfo = await r.json();
+    if (r.ok && userInfo) {
+      // Función auxiliar para extraer "saldo" desde distintas formas de respuesta
+      const extractSaldo = (data) => {
+        if (data == null) return null;
+        // Si es número o string (respuesta directa)
+        if (typeof data === 'number' || typeof data === 'string') {
+          const n = Number(data);
+          return Number.isFinite(n) ? n : null;
+        }
+
+        // Si viene { data: ... }
+        if (typeof data === 'object' && 'data' in data) {
+          return extractSaldo(data.data);
+        }
+
+        // Si es un array, tomar el primer elemento
+        if (Array.isArray(data)) {
+          return data.length > 0 ? extractSaldo(data[0]) : null;
+        }
+
+        // Si es un objeto, buscar propiedad 'saldo' (case-insensitive)
+        if (typeof data === 'object') {
+          // búsqueda directa
+          if ('saldo' in data) return Number(data.saldo) || 0;
+          // intentar propiedades en distinto case
+          for (const k of Object.keys(data)) {
+            if (k.toLowerCase() === 'saldo') return Number(data[k]) || 0;
+          }
+          // si no tiene saldo directamente, inspeccionar valores anidados (nivel 1)
+          for (const v of Object.values(data)) {
+            const found = extractSaldo(v);
+            if (found != null) return found;
+          }
+        }
+
+        return null;
+      };
+
+      const saldo = extractSaldo(userInfo);
+      if (saldo != null) {
+        state.credits = Number(saldo) || 0;
+        // Actualiza también el saldo en localStorage
+        const newSession = { ...JSON.parse(session), saldo: state.credits };
+        localStorage.setItem('pb:session', JSON.stringify(newSession));
+      } else {
+        console.warn('syncBalance: no se encontró campo `saldo` en la respuesta de la API', userInfo);
+      }
+    } else {
+      console.error('syncBalance: llamada a API fallida', r.status, await r.text());
     }
   } catch (e) {
     console.error("Error al sincronizar saldo:", e);
@@ -59,6 +103,7 @@ export const setSession = (session) => {
   state.uid = session.uid;
   state.rol = session.rol; // Guardamos el rol en el estado
   state.credits = Number(session.saldo) || 0;
+  console.log(state.credits);
   localStorage.setItem('pb:session', JSON.stringify(session));
 };
 

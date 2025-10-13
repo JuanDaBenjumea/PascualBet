@@ -161,6 +161,7 @@
         <!-- Betting Table Section -->
         <div class="betting-section">
           <div class="card betting-table">
+
             <h2 class="h2">MESA DE APUESTAS</h2>
             
             <div class="table-layout">
@@ -731,7 +732,7 @@ export default {
 }
 
 .container {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
   padding: 1rem;
 }
@@ -863,12 +864,19 @@ export default {
   box-shadow: 0 8px 30px rgba(0,0,0,0.3);
 }
 
+.wheel-section, .betting-section {
+  display: flex;
+  flex-direction: column;
+}
+
 /* Wheel Section */
 .wheel-container {
   position: relative;
   display: flex;
   justify-content: center;
   align-items: center;
+  width: 400px;
+  height: 400px;
   margin-bottom: 2rem;
   filter: drop-shadow(0 0 25px rgba(212, 175, 55, 0.2)); /* Brillo sutil */
 }
@@ -987,6 +995,7 @@ export default {
 .spin-section {
   text-align: center;
   margin-bottom: 2rem;
+  width: 400px;
 }
 
 .btn {
@@ -1016,6 +1025,7 @@ export default {
   background: #1e1e1e;
   color: #c0c0c0;
   border: 1px solid #444;
+  margin-top: 1rem;
 }
 .back-btn:hover {
   background: #2a2a2a;
@@ -1099,7 +1109,10 @@ export default {
   color: var(--muted);
   font-size: 1rem;
 }
-
+.betting-table{
+  width: 800px;
+  height: 100%;
+}
 /* Betting Table */
 .h2 {
   font-size: 1.8rem;
@@ -1281,7 +1294,7 @@ export default {
 
 /* Bet Controls */
 .bet-controls {
-  padding-top: 1.5rem;
+  padding-top: 3rem;
   border-top: 1px solid var(--border);
 }
 
