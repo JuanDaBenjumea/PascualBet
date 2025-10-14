@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { supabase } from '../db/supa.client';
+import { supabase } from 'src/db/supa.client';
 
 @Injectable()
 export class ApuestasService {
